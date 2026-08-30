@@ -1,0 +1,27 @@
+{
+  "analysis": {
+    "affected_nodes": [
+      "access1"
+    ],
+    "affected_prefixes": [
+      "10.10.1.0/24"
+    ],
+    "evidence": [
+      "link_down observed on access1--agg1",
+      "alternate service path available",
+      "shortest service path cost changed: access1 30->140"
+    ],
+    "failed_component": "access1--agg1",
+    "service_impact": "degraded"
+  },
+  "failed_link": "access1--agg1",
+  "measured": false,
+  "observed_at": "2026-08-30T08:03:25.642298+00:00",
+  "recovery": {
+    "action": "restore_link",
+    "status": "awaiting_approval",
+    "target": "access1--agg1"
+  },
+  "scenario": "access_uplink_failure",
+  "source": "scenario_injected_event"
+}

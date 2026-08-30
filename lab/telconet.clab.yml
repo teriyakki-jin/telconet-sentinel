@@ -1,0 +1,99 @@
+name: telconet-sentinel
+
+topology:
+  nodes:
+    core1:
+      kind: linux
+      image: quay.io/frrouting/frr:10.7.0
+      binds:
+        - frr/daemons:/etc/frr/daemons:ro
+        - frr/core1/frr.conf:/etc/frr/frr.conf:ro
+      privileged: false
+      cap-add: [NET_ADMIN, NET_RAW]
+      sysctls:
+        net.ipv4.ip_forward: 1
+    core2:
+      kind: linux
+      image: quay.io/frrouting/frr:10.7.0
+      binds:
+        - frr/daemons:/etc/frr/daemons:ro
+        - frr/core2/frr.conf:/etc/frr/frr.conf:ro
+      privileged: false
+      cap-add: [NET_ADMIN, NET_RAW]
+      sysctls:
+        net.ipv4.ip_forward: 1
+    agg1:
+      kind: linux
+      image: quay.io/frrouting/frr:10.7.0
+      binds:
+        - frr/daemons:/etc/frr/daemons:ro
+        - frr/agg1/frr.conf:/etc/frr/frr.conf:ro
+      privileged: false
+      cap-add: [NET_ADMIN, NET_RAW]
+      sysctls:
+        net.ipv4.ip_forward: 1
+    agg2:
+      kind: linux
+      image: quay.io/frrouting/frr:10.7.0
+      binds:
+        - frr/daemons:/etc/frr/daemons:ro
+        - frr/agg2/frr.conf:/etc/frr/frr.conf:ro
+      privileged: false
+      cap-add: [NET_ADMIN, NET_RAW]
+      sysctls:
+        net.ipv4.ip_forward: 1
+    access1:
+      kind: linux
+      image: quay.io/frrouting/frr:10.7.0
+      binds:
+        - frr/daemons:/etc/frr/daemons:ro
+        - frr/access1/frr.conf:/etc/frr/frr.conf:ro
+      privileged: false
+      cap-add: [NET_ADMIN, NET_RAW]
+      sysctls:
+        net.ipv4.ip_forward: 1
+    access2:
+      kind: linux
+      image: quay.io/frrouting/frr:10.7.0
+      binds:
+        - frr/daemons:/etc/frr/daemons:ro
+        - frr/access2/frr.conf:/etc/frr/frr.conf:ro
+      privileged: false
+      cap-add: [NET_ADMIN, NET_RAW]
+      sysctls:
+        net.ipv4.ip_forward: 1
+    client-a:
+      kind: linux
+      image: alpine:3.22
+      cmd: sleep infinity
+      exec:
+        - ip addr add 10.10.1.10/24 dev eth1
+        - ip route add default via 10.10.1.1
+    client-b:
+      kind: linux
+      image: alpine:3.22
+      cmd: sleep infinity
+      exec:
+        - ip addr add 10.10.2.10/24 dev eth1
+        - ip route add default via 10.10.2.1
+    service-host:
+      kind: linux
+      image: alpine:3.22
+      cmd: sleep infinity
+      exec:
+        - ip addr add 10.20.0.10/24 dev eth1
+        - ip route add default via 10.20.0.1
+
+  links:
+    - endpoints: [access1:eth1, agg1:eth1]
+    - endpoints: [access1:eth2, agg2:eth1]
+    - endpoints: [access2:eth1, agg1:eth2]
+    - endpoints: [access2:eth2, agg2:eth2]
+    - endpoints: [agg1:eth3, core1:eth1]
+    - endpoints: [agg1:eth4, core2:eth1]
+    - endpoints: [agg2:eth3, core1:eth2]
+    - endpoints: [agg2:eth4, core2:eth2]
+    - endpoints: [core1:eth3, core2:eth3]
+    - endpoints: [client-a:eth1, access1:eth3]
+    - endpoints: [client-b:eth1, access2:eth3]
+    - endpoints: [core1:eth4, service-host:eth1]

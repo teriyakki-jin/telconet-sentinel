@@ -1,0 +1,13 @@
+services:
+  api:
+    build: .
+    environment:
+      TELCONET_INTENT: /app/lab/intent.yml
+    ports:
+      - "127.0.0.1:8000:8000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+

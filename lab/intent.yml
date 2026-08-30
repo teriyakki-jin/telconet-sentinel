@@ -1,0 +1,50 @@
+version: 1
+nodes:
+  access1:
+    role: access
+    prefixes: [10.10.1.0/24]
+  access2:
+    role: access
+    prefixes: [10.10.2.0/24]
+  agg1:
+    role: aggregation
+  agg2:
+    role: aggregation
+  core1:
+    role: core
+  core2:
+    role: core
+  service-host:
+    role: service
+    prefixes: [10.20.0.0/24]
+links:
+  - id: access1--agg1
+    endpoints: [access1, agg1]
+    cost: 10
+  - id: access1--agg2
+    endpoints: [access1, agg2]
+    cost: 100
+  - id: access2--agg1
+    endpoints: [access2, agg1]
+    cost: 100
+  - id: access2--agg2
+    endpoints: [access2, agg2]
+    cost: 10
+  - id: agg1--core1
+    endpoints: [agg1, core1]
+    cost: 10
+  - id: agg1--core2
+    endpoints: [agg1, core2]
+    cost: 100
+  - id: agg2--core1
+    endpoints: [agg2, core1]
+    cost: 100
+  - id: agg2--core2
+    endpoints: [agg2, core2]
+    cost: 10
+  - id: core1--core2
+    endpoints: [core1, core2]
+    cost: 20
+  - id: core1--service-host
+    endpoints: [core1, service-host]
+    cost: 10
