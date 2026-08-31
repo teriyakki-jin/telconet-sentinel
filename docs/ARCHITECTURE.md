@@ -17,7 +17,9 @@ flowchart LR
     RUNBOOK --> CLAB
     CLAB --> RAW["timestamped experiment logs"]
     RAW --> EVIDENCE["recalculated JSON evidence"]
-    EVIDENCE --> METRICS["Prometheus /metrics"]
+    EVIDENCE --> METRICS["FastAPI /metrics"]
+    METRICS --> PROM["Prometheus scrape · 5s"]
+    PROM --> GRAFANA["Grafana provisioned dashboard"]
 ```
 
 ## Trust boundaries

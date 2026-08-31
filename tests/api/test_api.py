@@ -18,6 +18,17 @@ def test_health_and_topology(redundant_topology: Topology) -> None:
     assert {link["id"]: link["cost"] for link in topology.json()["links"]}["access1--agg1"] == 10
 
 
+def test_metrics_returns_service_unavailable_without_evidence(
+    redundant_topology: Topology,
+) -> None:
+    client = TestClient(create_app(redundant_topology))
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "experiment evidence is unavailable"
+
+
 def test_exposes_latest_experiment_as_prometheus_metrics(redundant_topology: Topology) -> None:
     evidence = {
         "profiles": {

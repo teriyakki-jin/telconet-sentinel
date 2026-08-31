@@ -71,7 +71,12 @@ def create_app(
 
     @app.get("/metrics", response_class=PlainTextResponse)
     def metrics() -> PlainTextResponse:
-        rendered = render_experiment_metrics(experiment_evidence or {"profiles": {}})
+        if experiment_evidence is None:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="experiment evidence is unavailable",
+            )
+        rendered = render_experiment_metrics(experiment_evidence)
         return PlainTextResponse(rendered, media_type="text/plain; version=0.0.4")
 
     @app.get("/api/topology")

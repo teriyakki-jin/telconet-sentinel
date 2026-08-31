@@ -31,7 +31,7 @@ Topology-aware impact analysis
 
 ## 현재 검증 상태
 
-- 단위·API·랩 계약·evidence 테스트 52개, branch coverage 87.58%
+- 단위·API·랩 계약·evidence 테스트 56개, branch coverage 87.63%
 - 6-router OSPF 구성과 containerlab 선언을 계약 테스트로 검증
 - `access1--agg1` 장애 시 Core 뒤 서비스까지 대체 경로와 `DEGRADED` 판정 검증
 - containerlab 0.79.0 + FRR 10.7.0에서 실제 9-node 랩 기동 검증
@@ -113,6 +113,24 @@ bash scenarios/bfd_comparison_lab.sh
 
 BFD 설정 문법과 세션 동작은 [FRRouting BFD 공식 문서](https://docs.frrouting.org/en/latest/bfd.html), OSPF timer와 interface 동작은 [FRRouting OSPF 공식 문서](https://docs.frrouting.org/en/latest/ospfd.html)를 기준으로 했습니다.
 
+### 관측 대시보드
+
+```powershell
+docker compose up -d --build
+```
+
+- Grafana: `http://127.0.0.1:3000` — 로그인 없이 read-only viewer로 비교 dashboard가 바로 열림
+- Prometheus: `http://127.0.0.1:9090`
+- Raw metrics: `http://127.0.0.1:8000/metrics`
+
+Grafana에는 OSPF/BFD 탐지 상한, 탐지시간 감소율, 전환 전 손실 패킷, 전체 캡처 손실률, 실험 조건을 담은 7개 패널을 파일 provisioning합니다. 모든 포트는 loopback에만 공개하며 dashboard와 datasource는 UI에서 수정할 수 없습니다.
+
+```powershell
+docker compose down
+```
+
+구성 방식은 [Prometheus scrape configuration](https://prometheus.io/docs/prometheus/latest/configuration/configuration/)과 [Grafana provisioning](https://grafana.com/docs/grafana/latest/administration/provisioning/) 공식 문서를 따릅니다.
+
 상세 검증 순서는 [링크 장애 Runbook](docs/RUNBOOK_LINK_FAILURE.md)에 있습니다.
 
 ## 설계 포인트
@@ -144,12 +162,13 @@ FRR 10.7 컨테이너의 `zebra`와 `ospfd`가 요구하는 capability 때문에
 1. FRR syslog에서 링크 이벤트를 수집해 scenario injection과 실제 탐지를 분리
 2. 반복 실험과 백분위수로 BFD 수렴 분포·변동성 검증
 3. BGP 및 MPLS L3VPN 추가
-4. Prometheus scrape 및 Grafana 대시보드 프로비저닝
+4. 실시간 FRR interface·neighbor metric exporter와 Grafana alert 추가
 5. FRR syslog 실시간 수집과 MTTR·오탐률 측정
 
 ## 기술 스택
 
 - Network lab: containerlab, FRRouting, OSPF
 - Backend: Python, FastAPI, Pydantic
+- Observability: Prometheus 3.14.0, Grafana 13.1.0, file provisioning
 - Validation: pytest, coverage, Ruff, mypy, GitHub Actions
 - Packaging: Docker, Docker Compose
