@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
+import pytest
 from fastapi.testclient import TestClient
 
 from telconet_sentinel.api import create_app
@@ -15,6 +16,37 @@ def test_health_and_topology(redundant_topology: Topology) -> None:
     assert len(topology.json()["nodes"]) == 7
     assert len(topology.json()["links"]) == 10
     assert {link["id"]: link["cost"] for link in topology.json()["links"]}["access1--agg1"] == 10
+
+
+def test_exposes_latest_experiment_as_prometheus_metrics(redundant_topology: Topology) -> None:
+    evidence = {
+        "profiles": {
+            "ospf_only": {
+                "observed_detection_upper_bound_ms": 3900,
+                "packets_lost_until_failover": 29,
+                "capture_packet_loss_percent": 50.0,
+            },
+            "bfd_100x3": {
+                "observed_detection_upper_bound_ms": 300,
+                "packets_lost_until_failover": 3,
+                "capture_packet_loss_percent": 16.667,
+            },
+        }
+    }
+    client = TestClient(create_app(redundant_topology, experiment_evidence=evidence))
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert 'telconet_detection_seconds{profile="bfd_100x3"} 0.3' in response.text
+
+
+def test_rejects_invalid_experiment_evidence_when_app_starts(
+    redundant_topology: Topology,
+) -> None:
+    with pytest.raises(ValueError, match="profiles"):
+        create_app(redundant_topology, experiment_evidence={})
 
 
 def test_ingests_event_and_returns_explainable_incident(redundant_topology: Topology) -> None:

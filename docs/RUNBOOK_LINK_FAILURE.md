@@ -44,7 +44,17 @@ bash scenarios/link_failure_lab.sh
 
 The script destroys any existing lab with the same topology name, deploys the current files, and captures their composite SHA-256. It then records event epoch markers, all `iputils ping -D` reply timestamps, OSPF route metrics, and traceroute output in [`evidence/measured-link-failure.log`](../evidence/measured-link-failure.log). `python3 -m telconet_sentinel.measurement` compares the event and reply clocks, parses the raw log, and rewrites [`evidence/measured-link-failure.json`](../evidence/measured-link-failure.json); the test suite recalculates it again to prevent hand-edited claims.
 
-The checked-in fresh-deploy reference run records 159/160 replies (0.625% loss), a path change within 150 ms, and return to the primary path within 1.226 seconds. The bounds compare event markers with timestamped ICMP replies in local Linux namespaces; they are not production-network SLOs or packet-capture measurements.
+The checked-in fresh-deploy reference run records 143/160 replies (10.625% loss), a path change within 1.905 seconds, and return to the primary path within 1.235 seconds. The bounds compare event markers with timestamped ICMP replies in local Linux namespaces; they are not production-network SLOs or packet-capture measurements.
+
+## Remote blackhole: OSPF versus BFD
+
+```bash
+bash scenarios/bfd_comparison_lab.sh
+```
+
+This comparison keeps `access1:eth1` carrier-up and applies 100% egress loss to `agg1:eth1` with `tc netem`. That makes the failure invisible to local carrier detection and compares the OSPF dead timer with `ip ospf bfd 3 100 100`. Each profile uses the same 140-packet, 100 ms probe window and keeps the blackhole active until capture completes.
+
+The checked-in run observed 3.384 seconds/31 lost packets before failover with OSPF only and 336 ms/2 lost packets with BFD. Raw inputs are [`remote-blackhole-ospf.log`](../evidence/remote-blackhole-ospf.log) and [`remote-blackhole-bfd.log`](../evidence/remote-blackhole-bfd.log); [`bfd-comparison.json`](../evidence/bfd-comparison.json) is regenerated from them and checked by tests. Event markers precede the `tc` command, so the upper bound includes command overhead.
 
 The FRR image emits integrated-config diagnostics on `vtysh` stderr even when a read-only route query exits successfully. The measurement script excludes that diagnostic stream from evidence, still fails on a non-zero command, and requires the expected OSPF metric before each state capture. The raw log retains the `Status: Installed` route output used by the parser.
 

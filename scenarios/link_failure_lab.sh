@@ -21,12 +21,8 @@ command -v python3 >/dev/null || {
 docker info >/dev/null
 
 configuration_sha256="$(
-  {
-    sha256sum "${lab_file}" | awk '{print $1}'
-    sha256sum "${project_root}/lab/intent.yml" | awk '{print $1}'
-    find "${project_root}/lab/frr" -type f -print0 | sort -z | xargs -0 sha256sum |
-      awk '{print $1}'
-  } | sha256sum | awk '{print $1}'
+  PYTHONPATH="${project_root}/src" python3 -m telconet_sentinel.configuration \
+    --project-root "${project_root}"
 )"
 
 if docker ps -a --format '{{.Names}}' | grep -q '^clab-telconet-sentinel-'; then

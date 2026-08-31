@@ -9,6 +9,7 @@ ROOT = Path(__file__).parents[2]
 LAB_FILE = ROOT / "lab" / "telconet.clab.yml"
 INTENT_FILE = ROOT / "lab" / "intent.yml"
 SCENARIO_FILE = ROOT / "scenarios" / "link_failure_lab.sh"
+BFD_SCENARIO_FILE = ROOT / "scenarios" / "bfd_comparison_lab.sh"
 
 
 def test_intent_is_single_source_for_impact_topology() -> None:
@@ -113,3 +114,16 @@ def test_failure_scenario_captures_raw_log_and_builds_evidence() -> None:
     assert "python3 -m telconet_sentinel.measurement" in scenario
     assert "measured-link-failure.log" in scenario
     assert "measured-link-failure.json" in scenario
+
+
+def test_bfd_scenario_uses_remote_blackhole_and_two_profiles() -> None:
+    scenario = BFD_SCENARIO_FILE.read_text(encoding="utf-8")
+    daemons = (ROOT / "lab" / "frr" / "daemons").read_text(encoding="utf-8")
+
+    assert "bfdd=yes" in daemons
+    assert "tc qdisc add dev eth1 root netem loss 100%" in scenario
+    assert "ip ospf bfd 3 100 100" in scenario
+    assert "show bfd peers brief" in scenario
+    assert "capture_profile ospf_only" in scenario
+    assert "capture_profile bfd_100x3" in scenario
+    assert "python3 -m telconet_sentinel.bfd_comparison" in scenario

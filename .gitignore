@@ -11,3 +11,4 @@ clab-*/
 evidence/*.json
 !evidence/example-simulated-link-failure.json
 !evidence/measured-link-failure.json
+!evidence/bfd-comparison.json

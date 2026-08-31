@@ -1,7 +1,8 @@
 import json
-from hashlib import sha256
 from pathlib import Path
 
+from telconet_sentinel.bfd_comparison import build_comparison
+from telconet_sentinel.configuration import configuration_fingerprint
 from telconet_sentinel.evidence import build_simulated_evidence, write_evidence
 from telconet_sentinel.measurement import parse_measurement_log
 from telconet_sentinel.models import NetworkEvent
@@ -50,16 +51,26 @@ def test_measured_lab_evidence_records_observed_values_and_limits() -> None:
 
     assert evidence == recalculated
 
-    config_files = [ROOT / "lab" / "telconet.clab.yml", ROOT / "lab" / "intent.yml"]
-    config_files.extend(
-        sorted(
-            (path for path in (ROOT / "lab" / "frr").rglob("*") if path.is_file()),
-            key=lambda path: path.as_posix(),
-        )
+    assert evidence["environment"]["configuration_sha256"] == configuration_fingerprint(
+        ROOT
     )
-    component_hashes = "".join(
-        f"{sha256(path.read_bytes()).hexdigest()}\n" for path in config_files
+
+
+def test_bfd_comparison_is_recalculated_from_checked_in_raw_logs() -> None:
+    json_path = ROOT / "evidence" / "bfd-comparison.json"
+    ospf_log = (ROOT / "evidence" / "remote-blackhole-ospf.log").read_text(
+        encoding="utf-8"
     )
-    assert evidence["environment"]["configuration_sha256"] == sha256(
-        component_hashes.encode("ascii")
-    ).hexdigest()
+    bfd_log = (ROOT / "evidence" / "remote-blackhole-bfd.log").read_text(
+        encoding="utf-8"
+    )
+
+    evidence = json.loads(json_path.read_text(encoding="utf-8"))
+
+    assert evidence == build_comparison(ospf_log, bfd_log)
+    assert evidence["profiles"]["bfd_100x3"]["bfd_peer_up"] is True
+    assert evidence["improvement"]["detection_time_reduction_percent"] > 80
+    current_fingerprint = configuration_fingerprint(ROOT)
+    assert {
+        profile["configuration_sha256"] for profile in evidence["profiles"].values()
+    } == {current_fingerprint}

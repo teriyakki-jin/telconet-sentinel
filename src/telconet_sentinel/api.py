@@ -2,8 +2,10 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, status
+from fastapi.responses import PlainTextResponse
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
+from .metrics import render_experiment_metrics, validate_experiment_evidence
 from .models import Incident, NetworkEvent
 from .service import IncidentService
 from .topology import Topology
@@ -51,7 +53,11 @@ def _incident_response(incident: Incident) -> IncidentResponse:
     )
 
 
-def create_app(topology: Topology) -> FastAPI:
+def create_app(
+    topology: Topology, experiment_evidence: dict[str, Any] | None = None
+) -> FastAPI:
+    if experiment_evidence is not None:
+        validate_experiment_evidence(experiment_evidence)
     app = FastAPI(
         title="TelcoNet Sentinel",
         version="0.1.0",
@@ -62,6 +68,11 @@ def create_app(topology: Topology) -> FastAPI:
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/metrics", response_class=PlainTextResponse)
+    def metrics() -> PlainTextResponse:
+        rendered = render_experiment_metrics(experiment_evidence or {"profiles": {}})
+        return PlainTextResponse(rendered, media_type="text/plain; version=0.0.4")
 
     @app.get("/api/topology")
     def get_topology() -> dict[str, list[dict[str, Any]]]:

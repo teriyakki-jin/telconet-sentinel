@@ -2,5 +2,6 @@ zebra=yes
 bgpd=no
 ospfd=yes
 ospf6d=no
+bfdd=yes
 staticd=no
 vtysh_enable=yes

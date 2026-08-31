@@ -31,14 +31,32 @@ Topology-aware impact analysis
 
 ## 현재 검증 상태
 
-- 단위·API·랩 계약·evidence 테스트 39개
-- branch coverage 89.29%
+- 단위·API·랩 계약·evidence 테스트 52개, branch coverage 87.58%
 - 6-router OSPF 구성과 containerlab 선언을 계약 테스트로 검증
 - `access1--agg1` 장애 시 Core 뒤 서비스까지 대체 경로와 `DEGRADED` 판정 검증
 - containerlab 0.79.0 + FRR 10.7.0에서 실제 9-node 랩 기동 검증
-- fresh-deploy 100ms 간격 160패킷 실험: 손실 0.625%, 경로 전환 150ms 이내, 기본 경로 복귀 1.226초 이내
+- 실제 링크-down 실험과 OSPF/BFD 원격 블랙홀 A/B 실험을 원시 로그부터 재계산
+- BFD 100ms × 3 적용 시 관측 경로 전환 상한 3.384초 → 336ms(90.07% 단축)
+- 전환 전 손실 패킷 31개 → 2개(93.55% 감소), 동일 140패킷 캡처 손실 22.1429% → 1.42857%
 
-분석 예시는 `scenario_injected_event`, 실험 결과는 `containerlab_observation`으로 분리합니다. [원시 실험 로그](evidence/measured-link-failure.log)를 파서가 [측정 JSON](evidence/measured-link-failure.json)으로 재계산하며, 테스트에서 두 결과가 일치하는지 검증합니다.
+분석 예시는 `scenario_injected_event`, 실험 결과는 `containerlab_observation`으로 분리합니다. [링크-down 원시 로그](evidence/measured-link-failure.log)와 [BFD 비교 원시 로그](evidence/remote-blackhole-bfd.log)를 파서가 각각 [측정 JSON](evidence/measured-link-failure.json)과 [비교 JSON](evidence/bfd-comparison.json)으로 재계산하며, 테스트에서 결과 일치를 검증합니다.
+
+```mermaid
+flowchart LR
+    PING["client-a · 100ms ICMP"] --> A1[access1]
+    A1 -->|"primary · OSPF 30"| G1[agg1]
+    A1 -->|"backup · OSPF 140"| G2[agg2]
+    G1 --> CORE[core]
+    G2 --> CORE
+    CORE --> SVC[service-host]
+    TC["agg1 eth1 · tc 100% loss"] -. "carrier-up remote blackhole" .-> G1
+    A1 --> OBS["timestamp parser → JSON → /metrics"]
+```
+
+| 프로필 | 탐지 방식 | 경로 전환 상한 | 전환 전 손실 | 전체 캡처 손실 |
+|---|---|---:|---:|---:|
+| OSPF only | hello 1s / dead 4s | 3,384ms | 31 packets | 22.1429% |
+| BFD | min tx/rx 100ms, multiplier 3 | 336ms | 2 packets | 1.42857% |
 
 ## 빠른 시작
 
@@ -65,6 +83,7 @@ curl -X POST http://127.0.0.1:8000/api/events \
 | Method | Path | 목적 |
 |---|---|---|
 | GET | `/health` | API 상태 확인 |
+| GET | `/metrics` | 최신 A/B 실험의 Prometheus 지표 |
 | GET | `/api/topology` | 노드·링크·가입자 prefix 확인 |
 | POST | `/api/events` | 장애 이벤트 분석 및 중복 제거 |
 | GET | `/api/incidents/{id}` | 장애 분석 결과 확인 |
@@ -85,9 +104,14 @@ containerlab은 Linux 네트워크 기능을 사용하므로 Windows에서는 WS
 ```bash
 python -m pip install -e .
 bash scenarios/link_failure_lab.sh
+bash scenarios/bfd_comparison_lab.sh
 ```
 
-스크립트는 기존 동일 이름 lab을 제거해 현재 설정으로 다시 배포하고, 100ms 간격 timestamped ping 중 링크를 단절·복구한 뒤 route와 traceroute를 함께 기록합니다. 이벤트 epoch와 `iputils ping -D` 응답 timestamp를 비교해 경로 전환 상한을 계산하며 topology·intent·FRR configuration SHA-256도 남기므로 수치를 수동으로 입력하지 않습니다.
+첫 스크립트는 로컬 carrier-down 복구를, 두 번째 스크립트는 carrier는 유지한 채 `tc netem`으로 원격 패킷 블랙홀을 만들고 OSPF only/BFD를 같은 조건에서 비교합니다. 이벤트 epoch와 `iputils ping -D` 응답 timestamp를 비교해 경로 전환 상한을 계산하며 topology·intent·FRR configuration SHA-256도 남기므로 수치를 수동으로 입력하지 않습니다.
+
+앱은 비교 JSON을 읽어 `telconet_detection_seconds`, `telconet_failover_lost_packets`, `telconet_capture_packet_loss_ratio`를 `/metrics`에 노출합니다. Docker 이미지에도 검증된 evidence가 포함됩니다.
+
+BFD 설정 문법과 세션 동작은 [FRRouting BFD 공식 문서](https://docs.frrouting.org/en/latest/bfd.html), OSPF timer와 interface 동작은 [FRRouting OSPF 공식 문서](https://docs.frrouting.org/en/latest/ospfd.html)를 기준으로 했습니다.
 
 상세 검증 순서는 [링크 장애 Runbook](docs/RUNBOOK_LINK_FAILURE.md)에 있습니다.
 
@@ -118,10 +142,10 @@ FRR 10.7 컨테이너의 `zebra`와 `ospfd`가 요구하는 capability 때문에
 ## 다음 단계
 
 1. FRR syslog에서 링크 이벤트를 수집해 scenario injection과 실제 탐지를 분리
-2. BFD 도입 전후 수렴시간과 패킷 손실 비교
+2. 반복 실험과 백분위수로 BFD 수렴 분포·변동성 검증
 3. BGP 및 MPLS L3VPN 추가
-4. Prometheus/Grafana 기반 인터페이스·라우팅 상태 시각화
-5. 반복 장애 실험으로 MTTR과 오탐률 측정
+4. Prometheus scrape 및 Grafana 대시보드 프로비저닝
+5. FRR syslog 실시간 수집과 MTTR·오탐률 측정
 
 ## 기술 스택
 

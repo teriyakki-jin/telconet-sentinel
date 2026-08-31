@@ -15,6 +15,9 @@ flowchart LR
     INCIDENT --> APPROVAL["typed state transition"]
     APPROVAL --> RUNBOOK["local allowlisted runbook"]
     RUNBOOK --> CLAB
+    CLAB --> RAW["timestamped experiment logs"]
+    RAW --> EVIDENCE["recalculated JSON evidence"]
+    EVIDENCE --> METRICS["Prometheus /metrics"]
 ```
 
 ## Trust boundaries
@@ -49,5 +52,5 @@ All router links participate in OSPF area 0. Interface costs create explicit pri
 ## Phase boundaries
 
 - Phase 1: OSPF cost-aware impact analysis, typed recovery state, scenario evidence.
-- Phase 2: BFD and FRR syslog collection, measured convergence comparison.
-- Phase 3: BGP/MPLS L3VPN and streaming telemetry.
+- Phase 2: completed BFD remote-failure comparison and Prometheus-compatible evidence metrics.
+- Phase 3: FRR syslog collection, BGP/MPLS L3VPN, and live streaming telemetry.

@@ -1,0 +1,92 @@
+{
+  "improvement": {
+    "detection_time_reduction_percent": 90.07,
+    "lost_packets_until_failover_reduction_percent": 93.55
+  },
+  "limitations": [
+    "The fault is emulated with tc netem in local Linux namespaces.",
+    "Event markers precede tc commands, so observed bounds include command overhead.",
+    "Results are a controlled comparison and are not production-network SLOs."
+  ],
+  "measured": true,
+  "profiles": {
+    "bfd_100x3": {
+      "baseline": {
+        "ospf_metric": 30,
+        "path": [
+          "10.10.1.1",
+          "10.0.1.1",
+          "10.0.2.1",
+          "10.20.0.10"
+        ]
+      },
+      "bfd_peer_up": true,
+      "capture_packet_loss_percent": 1.42857,
+      "capture_started_at": "2026-08-31T16:34:04+09:00",
+      "configuration_sha256": "12926a3cdff3f5554aded09228aecdd81a6727398761e563fcff3fa363de97b3",
+      "configured_detection_ms": 300,
+      "detector": "bfd",
+      "failover": {
+        "ospf_metric": 140,
+        "path": [
+          "10.10.1.1",
+          "10.0.1.3",
+          "10.0.2.7",
+          "10.0.2.8",
+          "10.20.0.10"
+        ]
+      },
+      "fault": {
+        "event_epoch_ns": 1788161646644440587,
+        "first_changed_reply_epoch_ns": 1788161646980362000,
+        "first_changed_sequence": 23,
+        "mode": "remote_packet_blackhole"
+      },
+      "observed_detection_upper_bound_ms": 336,
+      "packets_lost_until_failover": 2,
+      "packets_received": 138,
+      "packets_transmitted": 140,
+      "profile": "bfd_100x3"
+    },
+    "ospf_only": {
+      "baseline": {
+        "ospf_metric": 30,
+        "path": [
+          "10.10.1.1",
+          "10.0.1.1",
+          "10.0.2.1",
+          "10.20.0.10"
+        ]
+      },
+      "bfd_peer_up": false,
+      "capture_packet_loss_percent": 22.1429,
+      "capture_started_at": "2026-08-31T16:33:46+09:00",
+      "configuration_sha256": "12926a3cdff3f5554aded09228aecdd81a6727398761e563fcff3fa363de97b3",
+      "configured_detection_ms": 4000,
+      "detector": "ospf_dead_timer",
+      "failover": {
+        "ospf_metric": 140,
+        "path": [
+          "10.10.1.1",
+          "10.0.1.3",
+          "10.0.2.7",
+          "10.0.2.8",
+          "10.20.0.10"
+        ]
+      },
+      "fault": {
+        "event_epoch_ns": 1788161629058386808,
+        "first_changed_reply_epoch_ns": 1788161632442031000,
+        "first_changed_sequence": 52,
+        "mode": "remote_packet_blackhole"
+      },
+      "observed_detection_upper_bound_ms": 3384,
+      "packets_lost_until_failover": 31,
+      "packets_received": 109,
+      "packets_transmitted": 140,
+      "profile": "ospf_only"
+    }
+  },
+  "scenario": "remote_access_uplink_blackhole",
+  "source": "containerlab_observation"
+}
