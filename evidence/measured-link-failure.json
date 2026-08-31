@@ -1,0 +1,65 @@
+{
+  "baseline": {
+    "ospf_metric": 30,
+    "path": [
+      "10.10.1.1",
+      "10.0.1.1",
+      "10.0.2.1",
+      "10.20.0.10"
+    ]
+  },
+  "capture_started_at": "2026-08-31T12:43:03+09:00",
+  "environment": {
+    "configuration_sha256": "6f9619d436fe42a0c2b9cb5355df0b3beb5b0752e5f4f6871790176ce7a3595d",
+    "containerlab": "0.79.0",
+    "docker_engine": "29.1.3",
+    "frr": "10.7.0",
+    "host": "WSL2 Ubuntu 22.04"
+  },
+  "failed_link": "access1--agg1",
+  "failover": {
+    "event_epoch_ns": 1788147785605825402,
+    "ospf_metric": 140,
+    "path": [
+      "10.10.1.1",
+      "10.0.1.3",
+      "10.0.2.7",
+      "10.0.2.8",
+      "10.20.0.10"
+    ],
+    "path_change_upper_bound_ms": 150,
+    "ping": {
+      "interval_ms": 100,
+      "packet_loss_percent": 0.625,
+      "received": 159,
+      "transmitted": 160
+    },
+    "sampling_evidence": "link-down marker at 1788147785605825402; TTL changed from 61 at sequence 21 with reply timestamp 1788147785755025000"
+  },
+  "injection": {
+    "command": "docker exec clab-telconet-sentinel-access1 ip link set eth1 down",
+    "interface": "access1:eth1"
+  },
+  "limitations": [
+    "Results were measured in local Linux network namespaces, not on carrier hardware.",
+    "Bounds compare event epoch markers with iputils -D reply timestamps; 100 ms probing means the path may have changed earlier.",
+    "Event markers are written before docker exec link commands, so measured deltas include command execution overhead.",
+    "The failure was a local administrative link-down, so remote-fault detection time was not measured."
+  ],
+  "measured": true,
+  "recovery": {
+    "command": "docker exec clab-telconet-sentinel-access1 ip link set eth1 up",
+    "event_epoch_ns": 1788147789853067777,
+    "ospf_metric": 30,
+    "path": [
+      "10.10.1.1",
+      "10.0.1.1",
+      "10.0.2.1",
+      "10.20.0.10"
+    ],
+    "path_return_upper_bound_ms": 1226,
+    "sampling_evidence": "link-up marker at 1788147789853067777; TTL returned to 61 at sequence 72 with reply timestamp 1788147791078515000"
+  },
+  "scenario": "access_uplink_failure",
+  "source": "containerlab_observation"
+}

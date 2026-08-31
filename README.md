@@ -31,13 +31,14 @@ Topology-aware impact analysis
 
 ## 현재 검증 상태
 
-- 단위·API·랩 계약·evidence 테스트 33개
-- branch coverage 88.87%
+- 단위·API·랩 계약·evidence 테스트 39개
+- branch coverage 89.29%
 - 6-router OSPF 구성과 containerlab 선언을 계약 테스트로 검증
 - `access1--agg1` 장애 시 Core 뒤 서비스까지 대체 경로와 `DEGRADED` 판정 검증
-- 실제 containerlab 실측 수치는 아직 저장하지 않음
+- containerlab 0.79.0 + FRR 10.7.0에서 실제 9-node 랩 기동 검증
+- fresh-deploy 100ms 간격 160패킷 실험: 손실 0.625%, 경로 전환 150ms 이내, 기본 경로 복귀 1.226초 이내
 
-현재 포함된 예시 evidence는 `scenario_injected_event`로 명시되며 수렴시간이나 패킷 손실을 꾸며내지 않습니다.
+분석 예시는 `scenario_injected_event`, 실험 결과는 `containerlab_observation`으로 분리합니다. [원시 실험 로그](evidence/measured-link-failure.log)를 파서가 [측정 JSON](evidence/measured-link-failure.json)으로 재계산하며, 테스트에서 두 결과가 일치하는지 검증합니다.
 
 ## 빠른 시작
 
@@ -83,9 +84,10 @@ containerlab은 Linux 네트워크 기능을 사용하므로 Windows에서는 WS
 
 ```bash
 python -m pip install -e .
-containerlab deploy --topo lab/telconet.clab.yml
 bash scenarios/link_failure_lab.sh
 ```
+
+스크립트는 기존 동일 이름 lab을 제거해 현재 설정으로 다시 배포하고, 100ms 간격 timestamped ping 중 링크를 단절·복구한 뒤 route와 traceroute를 함께 기록합니다. 이벤트 epoch와 `iputils ping -D` 응답 timestamp를 비교해 경로 전환 상한을 계산하며 topology·intent·FRR configuration SHA-256도 남기므로 수치를 수동으로 입력하지 않습니다.
 
 상세 검증 순서는 [링크 장애 Runbook](docs/RUNBOOK_LINK_FAILURE.md)에 있습니다.
 
@@ -108,6 +110,8 @@ API는 raw shell command를 받지 않습니다. Phase 1에서 가능한 동작�
 - 계약 테스트: 두 선언의 링크 일치, 이미지 버전 태그, 최소 컨테이너 권한, OSPF 설정과 Router ID 검증
 
 FRR 이미지는 현재 `10.7.0` 태그로 고정했습니다. 실제 랩 pull 검증 후에는 registry digest까지 고정할 예정입니다.
+
+FRR 10.7 컨테이너의 `zebra`와 `ospfd`가 요구하는 capability 때문에 라우터에 `NET_ADMIN`, `NET_RAW`, `SYS_ADMIN`을 부여합니다. 컨테이너는 privileged 모드가 아니며 FRR 설정 bind는 읽기 전용입니다. 이 권한 모델은 격리된 로컬 실험용이며 운영 환경 배포를 전제로 하지 않습니다.
 
 아키텍처와 신뢰 경계는 [ARCHITECTURE.md](docs/ARCHITECTURE.md)에 정리했습니다.
 
