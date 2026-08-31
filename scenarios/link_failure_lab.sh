@@ -61,7 +61,8 @@ wait_for_metric() {
 record_state() {
   local state="$1"
   echo "STATE_BEGIN name=${state}"
-  docker exec "${access_1}" vtysh -c "show ip route 10.20.0.0/24" 2>/dev/null
+  docker exec "${access_1}" vtysh -c "show ip route 10.20.0.0/24" 2>/dev/null |
+    sed 's/[[:space:]]*$//'
   docker exec "${client_a}" traceroute -n -m 8 -w 1 "${service_ip}"
   echo "STATE_END name=${state}"
 }
