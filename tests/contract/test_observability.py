@@ -78,7 +78,7 @@ def test_grafana_provisions_prometheus_and_bfd_dashboard() -> None:
     assert "telconet_failover_lost_packets" in queries
     assert "telconet_capture_packet_loss_ratio" in queries
     assert (
-        '(scalar(telconet_detection_seconds{profile="ospf_only"}) - '
-        'scalar(telconet_detection_seconds{profile="bfd_100x3"})) / '
-        'scalar(telconet_detection_seconds{profile="ospf_only"}) * 100'
+        '(sum(telconet_detection_seconds{profile="ospf_only"}) - '
+        'sum(telconet_detection_seconds{profile="bfd_100x3"})) / '
+        'sum(telconet_detection_seconds{profile="ospf_only"}) * 100'
     ) in queries

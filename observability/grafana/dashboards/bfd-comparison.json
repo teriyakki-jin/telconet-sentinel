@@ -105,7 +105,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "(scalar(telconet_detection_seconds{profile=\"ospf_only\"}) - scalar(telconet_detection_seconds{profile=\"bfd_100x3\"})) / scalar(telconet_detection_seconds{profile=\"ospf_only\"}) * 100",
+          "expr": "(sum(telconet_detection_seconds{profile=\"ospf_only\"}) - sum(telconet_detection_seconds{profile=\"bfd_100x3\"})) / sum(telconet_detection_seconds{profile=\"ospf_only\"}) * 100",
           "instant": true,
           "legendFormat": "reduction",
           "range": false,
@@ -254,5 +254,5 @@
   "timezone": "browser",
   "title": "TelcoNet Sentinel · OSPF vs BFD",
   "uid": "telconet-bfd-comparison",
-  "version": 1
+  "version": 2
 }

@@ -58,6 +58,10 @@ flowchart LR
 | OSPF only | hello 1s / dead 4s | 3,384ms | 31 packets | 22.1429% |
 | BFD | min tx/rx 100ms, multiplier 3 | 336ms | 2 packets | 1.42857% |
 
+![Grafana OSPF와 BFD 수렴 비교 대시보드](docs/assets/grafana-bfd-dashboard.png)
+
+_Prometheus가 수집한 checked-in containerlab 실험 evidence를 Grafana에서 비교한 화면입니다._
+
 ## 빠른 시작
 
 ### 분석 API와 테스트
