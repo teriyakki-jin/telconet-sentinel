@@ -1,0 +1,83 @@
+TELCONET_DETECTION_MEASUREMENT version=1 profile=ospf_only detector=ospf_dead_timer configured_detection_ms=4000 trial=10 capture_started_at=2026-09-01T11:36:47+09:00 configuration_sha256=12926a3cdff3f5554aded09228aecdd81a6727398761e563fcff3fa363de97b3
+STATE_BEGIN name=baseline
+Routing entry for 10.20.0.0/24
+  Known via "ospf", distance 110, metric 30, best
+  Last update 00:00:01 ago
+  Flags: Selected
+  Status: Installed
+  * 10.0.1.1, via eth1, weight 1
+
+traceroute to 10.20.0.10 (10.20.0.10), 8 hops max, 46 byte packets
+ 1  10.10.1.1  0.008 ms  0.005 ms  0.005 ms
+ 2  10.0.1.1  0.003 ms  0.003 ms  0.004 ms
+ 3  10.0.2.1  0.003 ms  0.004 ms  0.005 ms
+ 4  10.20.0.10  0.002 ms  0.003 ms  0.004 ms
+STATE_END name=baseline
+PING 10.20.0.10 (10.20.0.10) 56(84) bytes of data.
+[1788230207.777213] 64 bytes from 10.20.0.10: icmp_seq=1 ttl=61 time=0.151 ms
+[1788230207.878412] 64 bytes from 10.20.0.10: icmp_seq=2 ttl=61 time=0.133 ms
+[1788230207.982337] 64 bytes from 10.20.0.10: icmp_seq=3 ttl=61 time=0.121 ms
+[1788230208.086428] 64 bytes from 10.20.0.10: icmp_seq=4 ttl=61 time=0.139 ms
+[1788230208.190431] 64 bytes from 10.20.0.10: icmp_seq=5 ttl=61 time=0.126 ms
+[1788230208.294508] 64 bytes from 10.20.0.10: icmp_seq=6 ttl=61 time=0.137 ms
+[1788230208.398404] 64 bytes from 10.20.0.10: icmp_seq=7 ttl=61 time=0.207 ms
+[1788230208.502256] 64 bytes from 10.20.0.10: icmp_seq=8 ttl=61 time=0.109 ms
+[1788230208.606458] 64 bytes from 10.20.0.10: icmp_seq=9 ttl=61 time=0.130 ms
+[1788230208.710329] 64 bytes from 10.20.0.10: icmp_seq=10 ttl=61 time=0.170 ms
+EVENT type=blackhole_start epoch_ns=1788230208717081055
+[1788230208.818388] 64 bytes from 10.20.0.10: icmp_seq=11 ttl=61 time=0.089 ms
+[1788230212.466528] 64 bytes from 10.20.0.10: icmp_seq=46 ttl=60 time=0.163 ms
+[1788230212.570255] 64 bytes from 10.20.0.10: icmp_seq=47 ttl=60 time=0.080 ms
+[1788230212.674151] 64 bytes from 10.20.0.10: icmp_seq=48 ttl=60 time=0.063 ms
+[1788230212.778333] 64 bytes from 10.20.0.10: icmp_seq=49 ttl=60 time=0.129 ms
+[1788230212.882529] 64 bytes from 10.20.0.10: icmp_seq=50 ttl=60 time=0.196 ms
+[1788230212.986485] 64 bytes from 10.20.0.10: icmp_seq=51 ttl=60 time=0.133 ms
+[1788230213.090392] 64 bytes from 10.20.0.10: icmp_seq=52 ttl=60 time=0.124 ms
+[1788230213.194450] 64 bytes from 10.20.0.10: icmp_seq=53 ttl=60 time=0.126 ms
+[1788230213.298131] 64 bytes from 10.20.0.10: icmp_seq=54 ttl=60 time=0.093 ms
+STATE_BEGIN name=failover
+[1788230213.402091] 64 bytes from 10.20.0.10: icmp_seq=55 ttl=60 time=0.086 ms
+Routing entry for 10.20.0.0/24
+  Known via "ospf", distance 110, metric 140, best
+  Last update 00:00:01 ago
+  Flags: Selected
+  Status: Installed
+  * 10.0.1.3, via eth2, weight 1
+
+traceroute to 10.20.0.10 (10.20.0.10), 8 hops max, 46 byte packets
+ 1  10.10.1.1  0.005 ms  0.005 ms  0.004 ms
+ 2  10.0.1.3  0.002 ms  0.004 ms  0.003 ms
+ 3  10.0.2.7  0.004 ms  0.004 ms  0.004 ms
+ 4  10.0.2.8  0.003 ms  0.003 ms  0.004 ms
+ 5  10.20.0.10  0.003 ms  0.003 ms  0.004 ms
+STATE_END name=failover
+[1788230213.510230] 64 bytes from 10.20.0.10: icmp_seq=56 ttl=60 time=0.122 ms
+[1788230213.614421] 64 bytes from 10.20.0.10: icmp_seq=57 ttl=60 time=0.118 ms
+[1788230213.718476] 64 bytes from 10.20.0.10: icmp_seq=58 ttl=60 time=0.117 ms
+[1788230213.822530] 64 bytes from 10.20.0.10: icmp_seq=59 ttl=60 time=0.115 ms
+[1788230213.926196] 64 bytes from 10.20.0.10: icmp_seq=60 ttl=60 time=0.089 ms
+[1788230214.030402] 64 bytes from 10.20.0.10: icmp_seq=61 ttl=60 time=0.141 ms
+[1788230214.134616] 64 bytes from 10.20.0.10: icmp_seq=62 ttl=60 time=0.104 ms
+[1788230214.238380] 64 bytes from 10.20.0.10: icmp_seq=63 ttl=60 time=0.140 ms
+[1788230214.342580] 64 bytes from 10.20.0.10: icmp_seq=64 ttl=60 time=0.120 ms
+[1788230214.446541] 64 bytes from 10.20.0.10: icmp_seq=65 ttl=60 time=0.143 ms
+[1788230214.550454] 64 bytes from 10.20.0.10: icmp_seq=66 ttl=60 time=0.130 ms
+[1788230214.654534] 64 bytes from 10.20.0.10: icmp_seq=67 ttl=60 time=0.128 ms
+[1788230214.758590] 64 bytes from 10.20.0.10: icmp_seq=68 ttl=60 time=0.121 ms
+[1788230214.862654] 64 bytes from 10.20.0.10: icmp_seq=69 ttl=60 time=0.125 ms
+[1788230214.966437] 64 bytes from 10.20.0.10: icmp_seq=70 ttl=60 time=0.144 ms
+[1788230215.070261] 64 bytes from 10.20.0.10: icmp_seq=71 ttl=60 time=0.120 ms
+[1788230215.174345] 64 bytes from 10.20.0.10: icmp_seq=72 ttl=60 time=0.153 ms
+[1788230215.278220] 64 bytes from 10.20.0.10: icmp_seq=73 ttl=60 time=0.095 ms
+[1788230215.382409] 64 bytes from 10.20.0.10: icmp_seq=74 ttl=60 time=0.169 ms
+[1788230215.486476] 64 bytes from 10.20.0.10: icmp_seq=75 ttl=60 time=0.156 ms
+[1788230215.590693] 64 bytes from 10.20.0.10: icmp_seq=76 ttl=60 time=0.117 ms
+[1788230215.694199] 64 bytes from 10.20.0.10: icmp_seq=77 ttl=60 time=0.093 ms
+[1788230215.798251] 64 bytes from 10.20.0.10: icmp_seq=78 ttl=60 time=0.081 ms
+[1788230215.902275] 64 bytes from 10.20.0.10: icmp_seq=79 ttl=60 time=0.123 ms
+[1788230216.006573] 64 bytes from 10.20.0.10: icmp_seq=80 ttl=60 time=0.130 ms
+
+--- 10.20.0.10 ping statistics ---
+80 packets transmitted, 46 received, 42.5% packet loss, time 8229ms
+rtt min/avg/max/mdev = 0.063/0.126/0.207/0.028 ms
+EVENT type=blackhole_end epoch_ns=1788230216119482860

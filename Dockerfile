@@ -3,7 +3,8 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     TELCONET_INTENT=/app/lab/intent.yml \
-    TELCONET_EXPERIMENT=/app/evidence/bfd-comparison.json
+    TELCONET_EXPERIMENT=/app/evidence/bfd-comparison.json \
+    TELCONET_REPEATED_EXPERIMENT=/app/evidence/bfd-repeated-trials.json
 
 WORKDIR /app
 
@@ -11,6 +12,7 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 COPY lab/intent.yml ./lab/intent.yml
 COPY evidence/bfd-comparison.json ./evidence/bfd-comparison.json
+COPY evidence/bfd-repeated-trials.json ./evidence/bfd-repeated-trials.json
 
 RUN pip install --no-cache-dir .
 

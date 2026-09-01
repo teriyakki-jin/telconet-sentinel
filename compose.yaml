@@ -3,6 +3,7 @@ services:
     build: .
     environment:
       TELCONET_INTENT: /app/lab/intent.yml
+      TELCONET_REPEATED_EXPERIMENT: /app/evidence/bfd-repeated-trials.json
     ports:
       - "127.0.0.1:8000:8000"
     read_only: true

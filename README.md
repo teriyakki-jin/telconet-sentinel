@@ -31,13 +31,14 @@ Topology-aware impact analysis
 
 ## 현재 검증 상태
 
-- 단위·API·랩 계약·evidence 테스트 56개, branch coverage 87.63%
+- 단위·API·랩 계약·evidence 테스트 65개, branch coverage 85.73%
 - 6-router OSPF 구성과 containerlab 선언을 계약 테스트로 검증
 - `access1--agg1` 장애 시 Core 뒤 서비스까지 대체 경로와 `DEGRADED` 판정 검증
 - containerlab 0.79.0 + FRR 10.7.0에서 실제 9-node 랩 기동 검증
 - 실제 링크-down 실험과 OSPF/BFD 원격 블랙홀 A/B 실험을 원시 로그부터 재계산
 - BFD 100ms × 3 적용 시 관측 경로 전환 상한 3.384초 → 336ms(90.07% 단축)
 - 전환 전 손실 패킷 31개 → 2개(93.55% 감소), 동일 140패킷 캡처 손실 22.1429% → 1.42857%
+- 원격 ingress 블랙홀 20쌍 반복 실험에서 p95 4.058초 → 519ms(87.21% 단축)
 
 분석 예시는 `scenario_injected_event`, 실험 결과는 `containerlab_observation`으로 분리합니다. [링크-down 원시 로그](evidence/measured-link-failure.log)와 [BFD 비교 원시 로그](evidence/remote-blackhole-bfd.log)를 파서가 각각 [측정 JSON](evidence/measured-link-failure.json)과 [비교 JSON](evidence/bfd-comparison.json)으로 재계산하며, 테스트에서 결과 일치를 검증합니다.
 
@@ -61,6 +62,19 @@ flowchart LR
 ![Grafana OSPF와 BFD 수렴 비교 대시보드](docs/assets/grafana-bfd-dashboard.png)
 
 _Prometheus가 수집한 checked-in containerlab 실험 evidence를 Grafana에서 비교한 화면입니다._
+
+### 20회 반복 실험
+
+단발 수치의 우연성을 줄이기 위해 `agg1:eth1`의 carrier는 유지하고 ingress 패킷만 100% 차단하는 실험을 OSPF-only와 BFD 각각 20회 수행했습니다. 매 회차마다 BFD 세션 제거/Up 상태와 OSPF 기본 경로 metric 30 복귀를 확인한 후 다음 측정을 시작합니다. [40개 원시 로그](evidence/repeated)에서 [반복 실험 JSON](evidence/bfd-repeated-trials.json)을 다시 계산하는 통합 테스트도 포함합니다.
+
+| 프로필 | p50 | p95 | max | p95 단축률 |
+|---|---:|---:|---:|---:|
+| OSPF only | 3,794.5ms | 4,058ms | 4,158ms | - |
+| BFD 100ms × 3 | 498ms | 519ms | 523ms | 87.21% |
+
+![Grafana OSPF와 BFD 20회 반복 실험 분포 대시보드](docs/assets/grafana-bfd-repeated-trials.png)
+
+_p50·nearest-rank p95·최댓값과 40개 개별 관측값을 같은 화면에서 확인합니다._
 
 ## 빠른 시작
 
@@ -109,11 +123,12 @@ containerlab은 Linux 네트워크 기능을 사용하므로 Windows에서는 WS
 python -m pip install -e .
 bash scenarios/link_failure_lab.sh
 bash scenarios/bfd_comparison_lab.sh
+bash scenarios/bfd_repeated_trials_lab.sh
 ```
 
-첫 스크립트는 로컬 carrier-down 복구를, 두 번째 스크립트는 carrier는 유지한 채 `tc netem`으로 원격 패킷 블랙홀을 만들고 OSPF only/BFD를 같은 조건에서 비교합니다. 이벤트 epoch와 `iputils ping -D` 응답 timestamp를 비교해 경로 전환 상한을 계산하며 topology·intent·FRR configuration SHA-256도 남기므로 수치를 수동으로 입력하지 않습니다.
+첫 스크립트는 로컬 carrier-down 복구를, 두 번째 스크립트는 carrier는 유지한 채 `tc netem`으로 원격 패킷 블랙홀을 만들고 OSPF only/BFD를 한 번 비교합니다. 세 번째 스크립트는 원격 ingress 블랙홀을 프로필별 20회 반복해 p50·p95·max를 계산합니다. 이벤트 epoch와 `iputils ping -D` 응답 timestamp를 비교해 경로 전환 상한을 계산하며 topology·intent·FRR configuration SHA-256도 남기므로 수치를 수동으로 입력하지 않습니다.
 
-앱은 비교 JSON을 읽어 `telconet_detection_seconds`, `telconet_failover_lost_packets`, `telconet_capture_packet_loss_ratio`를 `/metrics`에 노출합니다. Docker 이미지에도 검증된 evidence가 포함됩니다.
+앱은 단발·반복 비교 JSON을 읽어 기존 비교 지표와 `telconet_detection_summary_seconds`, `telconet_trial_detection_seconds`를 `/metrics`에 노출합니다. Docker 이미지에도 검증된 evidence가 포함됩니다.
 
 BFD 설정 문법과 세션 동작은 [FRRouting BFD 공식 문서](https://docs.frrouting.org/en/latest/bfd.html), OSPF timer와 interface 동작은 [FRRouting OSPF 공식 문서](https://docs.frrouting.org/en/latest/ospfd.html)를 기준으로 했습니다.
 
@@ -124,10 +139,11 @@ docker compose up -d --build
 ```
 
 - Grafana: `http://127.0.0.1:3000` — 로그인 없이 read-only viewer로 비교 dashboard가 바로 열림
+- 반복 실험 dashboard: `http://127.0.0.1:3000/d/telconet-bfd-repeated-trials`
 - Prometheus: `http://127.0.0.1:9090`
 - Raw metrics: `http://127.0.0.1:8000/metrics`
 
-Grafana에는 OSPF/BFD 탐지 상한, 탐지시간 감소율, 전환 전 손실 패킷, 전체 캡처 손실률, 실험 조건을 담은 7개 패널을 파일 provisioning합니다. 모든 포트는 loopback에만 공개하며 dashboard와 datasource는 UI에서 수정할 수 없습니다.
+Grafana에는 단발 비교 dashboard와 20회 분포 dashboard를 파일 provisioning합니다. 모든 포트는 loopback에만 공개하며 dashboard와 datasource는 UI에서 수정할 수 없습니다.
 
 ```powershell
 docker compose down
@@ -164,10 +180,9 @@ FRR 10.7 컨테이너의 `zebra`와 `ospfd`가 요구하는 capability 때문에
 ## 다음 단계
 
 1. FRR syslog에서 링크 이벤트를 수집해 scenario injection과 실제 탐지를 분리
-2. 반복 실험과 백분위수로 BFD 수렴 분포·변동성 검증
-3. BGP 및 MPLS L3VPN 추가
-4. 실시간 FRR interface·neighbor metric exporter와 Grafana alert 추가
-5. FRR syslog 실시간 수집과 MTTR·오탐률 측정
+2. BGP 및 MPLS L3VPN 추가
+3. 실시간 FRR interface·neighbor metric exporter와 Grafana alert 추가
+4. FRR syslog 실시간 수집과 MTTR·오탐률 측정
 
 ## 기술 스택
 

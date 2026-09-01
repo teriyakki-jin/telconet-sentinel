@@ -10,6 +10,9 @@ def test_compose_declares_local_hardened_observability_services() -> None:
     compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
     services = compose["services"]
 
+    assert services["api"]["environment"]["TELCONET_REPEATED_EXPERIMENT"] == (
+        "/app/evidence/bfd-repeated-trials.json"
+    )
     assert services["prometheus"]["image"] == "prom/prometheus:v3.14.0"
     assert services["grafana"]["image"] == "grafana/grafana:13.1.0"
     assert services["prometheus"]["ports"] == ["127.0.0.1:9090:9090"]
@@ -30,6 +33,12 @@ def test_compose_declares_local_hardened_observability_services() -> None:
         assert services[service]["security_opt"] == ["no-new-privileges:true"]
     assert services["prometheus"]["read_only"] is True
     assert services["grafana"]["read_only"] is True
+
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "TELCONET_REPEATED_EXPERIMENT=/app/evidence/bfd-repeated-trials.json" in (
+        dockerfile
+    )
+    assert "COPY evidence/bfd-repeated-trials.json" in dockerfile
 
 
 def test_prometheus_scrapes_the_api_metrics_endpoint() -> None:
@@ -82,3 +91,27 @@ def test_grafana_provisions_prometheus_and_bfd_dashboard() -> None:
         'sum(telconet_detection_seconds{profile="bfd_100x3"})) / '
         'sum(telconet_detection_seconds{profile="ospf_only"}) * 100'
     ) in queries
+
+
+def test_grafana_provisions_repeated_trial_distribution_dashboard() -> None:
+    dashboard = json.loads(
+        (
+            ROOT
+            / "observability"
+            / "grafana"
+            / "dashboards"
+            / "bfd-repeated-trials.json"
+        ).read_text(encoding="utf-8")
+    )
+
+    assert dashboard["uid"] == "telconet-bfd-repeated-trials"
+    assert dashboard["title"] == "TelcoNet Sentinel · 20-Trial Distribution"
+    queries = {
+        target["expr"]
+        for panel in dashboard["panels"]
+        for target in panel.get("targets", [])
+    }
+    assert 'telconet_detection_summary_seconds{stat="p50"}' in queries
+    assert 'telconet_detection_summary_seconds{stat="p95"}' in queries
+    assert 'telconet_detection_summary_seconds{stat="max"}' in queries
+    assert "telconet_trial_detection_seconds" in queries

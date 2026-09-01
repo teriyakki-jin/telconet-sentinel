@@ -6,6 +6,7 @@ from telconet_sentinel.configuration import configuration_fingerprint
 from telconet_sentinel.evidence import build_simulated_evidence, write_evidence
 from telconet_sentinel.measurement import parse_measurement_log
 from telconet_sentinel.models import NetworkEvent
+from telconet_sentinel.repeated_trials import build_repeated_evidence
 from telconet_sentinel.topology import Topology
 
 ROOT = Path(__file__).parents[2]
@@ -74,3 +75,27 @@ def test_bfd_comparison_is_recalculated_from_checked_in_raw_logs() -> None:
     assert {
         profile["configuration_sha256"] for profile in evidence["profiles"].values()
     } == {current_fingerprint}
+
+
+def test_repeated_evidence_is_recalculated_from_forty_raw_logs() -> None:
+    def logs(profile: str) -> list[tuple[str, str]]:
+        directory = ROOT / "evidence" / "repeated" / profile
+        return [
+            (
+                f"{profile}/{path.name}",
+                path.read_text(encoding="utf-8"),
+            )
+            for path in sorted(directory.glob("trial-*.log"))
+        ]
+
+    evidence = json.loads(
+        (ROOT / "evidence" / "bfd-repeated-trials.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert evidence == build_repeated_evidence(logs("ospf_only"), logs("bfd_100x3"))
+    assert evidence["trial_count_per_profile"] == 20
+    assert evidence["environment"]["configuration_sha256"] == (
+        configuration_fingerprint(ROOT)
+    )

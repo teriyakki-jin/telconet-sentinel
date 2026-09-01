@@ -5,7 +5,11 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import PlainTextResponse
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
-from .metrics import render_experiment_metrics, validate_experiment_evidence
+from .metrics import (
+    render_experiment_metrics,
+    validate_experiment_evidence,
+    validate_repeated_experiment_evidence,
+)
 from .models import Incident, NetworkEvent
 from .service import IncidentService
 from .topology import Topology
@@ -54,10 +58,14 @@ def _incident_response(incident: Incident) -> IncidentResponse:
 
 
 def create_app(
-    topology: Topology, experiment_evidence: dict[str, Any] | None = None
+    topology: Topology,
+    experiment_evidence: dict[str, Any] | None = None,
+    repeated_experiment_evidence: dict[str, Any] | None = None,
 ) -> FastAPI:
     if experiment_evidence is not None:
         validate_experiment_evidence(experiment_evidence)
+    if repeated_experiment_evidence is not None:
+        validate_repeated_experiment_evidence(repeated_experiment_evidence)
     app = FastAPI(
         title="TelcoNet Sentinel",
         version="0.1.0",
@@ -76,7 +84,9 @@ def create_app(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="experiment evidence is unavailable",
             )
-        rendered = render_experiment_metrics(experiment_evidence)
+        rendered = render_experiment_metrics(
+            experiment_evidence, repeated_experiment_evidence
+        )
         return PlainTextResponse(rendered, media_type="text/plain; version=0.0.4")
 
     @app.get("/api/topology")

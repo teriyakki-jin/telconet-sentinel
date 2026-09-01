@@ -15,6 +15,7 @@ PING_REPLY = re.compile(
 )
 PING_SUMMARY = re.compile(
     r"(?P<sent>\d+) packets transmitted, (?P<received>\d+) (?:packets )?received, "
+    r"(?:\+\d+ errors?, )?"
     r"(?P<loss>[\d.]+)% packet loss"
 )
 ROUTE_METRIC = re.compile(r'Known via "ospf".* metric (?P<metric>\d+),')

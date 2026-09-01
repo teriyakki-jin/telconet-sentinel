@@ -1,0 +1,352 @@
+{
+  "environment": {
+    "configuration_sha256": "12926a3cdff3f5554aded09228aecdd81a6727398761e563fcff3fa363de97b3"
+  },
+  "improvement": {
+    "p50_detection_reduction_percent": 86.88,
+    "p95_detection_reduction_percent": 87.21
+  },
+  "limitations": [
+    "Trials run sequentially in one local containerlab deployment.",
+    "The 100 ms probe interval makes detection values upper bounds.",
+    "Results are controlled local observations, not production-network SLOs."
+  ],
+  "measured": true,
+  "profiles": {
+    "bfd_100x3": {
+      "capture_loss_percent": {
+        "max": 3.75,
+        "mean": 3.31,
+        "min": 2.5,
+        "p50": 3.75,
+        "p95": 3.75
+      },
+      "configuration_sha256": "12926a3cdff3f5554aded09228aecdd81a6727398761e563fcff3fa363de97b3",
+      "detection_ms": {
+        "max": 523,
+        "mean": 469.4,
+        "min": 393,
+        "p50": 498.0,
+        "p95": 519
+      },
+      "lost_packets": {
+        "max": 3,
+        "mean": 2.65,
+        "min": 2,
+        "p50": 3.0,
+        "p95": 3
+      },
+      "trials": [
+        {
+          "capture_loss_percent": 3.75,
+          "detection_ms": 500,
+          "lost_packets": 3,
+          "source": "bfd_100x3/trial-01.log",
+          "trial": 1
+        },
+        {
+          "capture_loss_percent": 2.5,
+          "detection_ms": 399,
+          "lost_packets": 2,
+          "source": "bfd_100x3/trial-02.log",
+          "trial": 2
+        },
+        {
+          "capture_loss_percent": 3.75,
+          "detection_ms": 496,
+          "lost_packets": 3,
+          "source": "bfd_100x3/trial-03.log",
+          "trial": 3
+        },
+        {
+          "capture_loss_percent": 2.5,
+          "detection_ms": 393,
+          "lost_packets": 2,
+          "source": "bfd_100x3/trial-04.log",
+          "trial": 4
+        },
+        {
+          "capture_loss_percent": 2.5,
+          "detection_ms": 406,
+          "lost_packets": 2,
+          "source": "bfd_100x3/trial-05.log",
+          "trial": 5
+        },
+        {
+          "capture_loss_percent": 3.75,
+          "detection_ms": 499,
+          "lost_packets": 3,
+          "source": "bfd_100x3/trial-06.log",
+          "trial": 6
+        },
+        {
+          "capture_loss_percent": 3.75,
+          "detection_ms": 495,
+          "lost_packets": 3,
+          "source": "bfd_100x3/trial-07.log",
+          "trial": 7
+        },
+        {
+          "capture_loss_percent": 3.75,
+          "detection_ms": 498,
+          "lost_packets": 3,
+          "source": "bfd_100x3/trial-08.log",
+          "trial": 8
+        },
+        {
+          "capture_loss_percent": 2.5,
+          "detection_ms": 396,
+          "lost_packets": 2,
+          "source": "bfd_100x3/trial-09.log",
+          "trial": 9
+        },
+        {
+          "capture_loss_percent": 2.5,
+          "detection_ms": 399,
+          "lost_packets": 2,
+          "source": "bfd_100x3/trial-10.log",
+          "trial": 10
+        },
+        {
+          "capture_loss_percent": 3.75,
+          "detection_ms": 498,
+          "lost_packets": 3,
+          "source": "bfd_100x3/trial-11.log",
+          "trial": 11
+        },
+        {
+          "capture_loss_percent": 3.75,
+          "detection_ms": 519,
+          "lost_packets": 3,
+          "source": "bfd_100x3/trial-12.log",
+          "trial": 12
+        },
+        {
+          "capture_loss_percent": 3.75,
+          "detection_ms": 506,
+          "lost_packets": 3,
+          "source": "bfd_100x3/trial-13.log",
+          "trial": 13
+        },
+        {
+          "capture_loss_percent": 3.75,
+          "detection_ms": 504,
+          "lost_packets": 3,
+          "source": "bfd_100x3/trial-14.log",
+          "trial": 14
+        },
+        {
+          "capture_loss_percent": 3.75,
+          "detection_ms": 507,
+          "lost_packets": 3,
+          "source": "bfd_100x3/trial-15.log",
+          "trial": 15
+        },
+        {
+          "capture_loss_percent": 3.75,
+          "detection_ms": 523,
+          "lost_packets": 3,
+          "source": "bfd_100x3/trial-16.log",
+          "trial": 16
+        },
+        {
+          "capture_loss_percent": 2.5,
+          "detection_ms": 416,
+          "lost_packets": 2,
+          "source": "bfd_100x3/trial-17.log",
+          "trial": 17
+        },
+        {
+          "capture_loss_percent": 3.75,
+          "detection_ms": 510,
+          "lost_packets": 3,
+          "source": "bfd_100x3/trial-18.log",
+          "trial": 18
+        },
+        {
+          "capture_loss_percent": 2.5,
+          "detection_ms": 412,
+          "lost_packets": 2,
+          "source": "bfd_100x3/trial-19.log",
+          "trial": 19
+        },
+        {
+          "capture_loss_percent": 3.75,
+          "detection_ms": 512,
+          "lost_packets": 3,
+          "source": "bfd_100x3/trial-20.log",
+          "trial": 20
+        }
+      ]
+    },
+    "ospf_only": {
+      "capture_loss_percent": {
+        "max": 47.5,
+        "mean": 42.69,
+        "min": 37.5,
+        "p50": 43.125,
+        "p95": 46.25
+      },
+      "configuration_sha256": "12926a3cdff3f5554aded09228aecdd81a6727398761e563fcff3fa363de97b3",
+      "detection_ms": {
+        "max": 4158,
+        "mean": 3752.95,
+        "min": 3313,
+        "p50": 3794.5,
+        "p95": 4058
+      },
+      "lost_packets": {
+        "max": 38,
+        "mean": 34.15,
+        "min": 30,
+        "p50": 34.5,
+        "p95": 37
+      },
+      "trials": [
+        {
+          "capture_loss_percent": 47.5,
+          "detection_ms": 4158,
+          "lost_packets": 38,
+          "source": "ospf_only/trial-01.log",
+          "trial": 1
+        },
+        {
+          "capture_loss_percent": 42.5,
+          "detection_ms": 3735,
+          "lost_packets": 34,
+          "source": "ospf_only/trial-02.log",
+          "trial": 2
+        },
+        {
+          "capture_loss_percent": 45.0,
+          "detection_ms": 3929,
+          "lost_packets": 36,
+          "source": "ospf_only/trial-03.log",
+          "trial": 3
+        },
+        {
+          "capture_loss_percent": 38.75,
+          "detection_ms": 3446,
+          "lost_packets": 31,
+          "source": "ospf_only/trial-04.log",
+          "trial": 4
+        },
+        {
+          "capture_loss_percent": 45.0,
+          "detection_ms": 3944,
+          "lost_packets": 36,
+          "source": "ospf_only/trial-05.log",
+          "trial": 5
+        },
+        {
+          "capture_loss_percent": 45.0,
+          "detection_ms": 3948,
+          "lost_packets": 36,
+          "source": "ospf_only/trial-06.log",
+          "trial": 6
+        },
+        {
+          "capture_loss_percent": 40.0,
+          "detection_ms": 3533,
+          "lost_packets": 32,
+          "source": "ospf_only/trial-07.log",
+          "trial": 7
+        },
+        {
+          "capture_loss_percent": 46.25,
+          "detection_ms": 4058,
+          "lost_packets": 37,
+          "source": "ospf_only/trial-08.log",
+          "trial": 8
+        },
+        {
+          "capture_loss_percent": 40.0,
+          "detection_ms": 3529,
+          "lost_packets": 32,
+          "source": "ospf_only/trial-09.log",
+          "trial": 9
+        },
+        {
+          "capture_loss_percent": 42.5,
+          "detection_ms": 3750,
+          "lost_packets": 34,
+          "source": "ospf_only/trial-10.log",
+          "trial": 10
+        },
+        {
+          "capture_loss_percent": 37.5,
+          "detection_ms": 3313,
+          "lost_packets": 30,
+          "source": "ospf_only/trial-11.log",
+          "trial": 11
+        },
+        {
+          "capture_loss_percent": 45.0,
+          "detection_ms": 3941,
+          "lost_packets": 36,
+          "source": "ospf_only/trial-12.log",
+          "trial": 12
+        },
+        {
+          "capture_loss_percent": 38.75,
+          "detection_ms": 3432,
+          "lost_packets": 31,
+          "source": "ospf_only/trial-13.log",
+          "trial": 13
+        },
+        {
+          "capture_loss_percent": 43.75,
+          "detection_ms": 3839,
+          "lost_packets": 35,
+          "source": "ospf_only/trial-14.log",
+          "trial": 14
+        },
+        {
+          "capture_loss_percent": 40.0,
+          "detection_ms": 3526,
+          "lost_packets": 32,
+          "source": "ospf_only/trial-15.log",
+          "trial": 15
+        },
+        {
+          "capture_loss_percent": 45.0,
+          "detection_ms": 3954,
+          "lost_packets": 36,
+          "source": "ospf_only/trial-16.log",
+          "trial": 16
+        },
+        {
+          "capture_loss_percent": 40.0,
+          "detection_ms": 3523,
+          "lost_packets": 32,
+          "source": "ospf_only/trial-17.log",
+          "trial": 17
+        },
+        {
+          "capture_loss_percent": 45.0,
+          "detection_ms": 3933,
+          "lost_packets": 36,
+          "source": "ospf_only/trial-18.log",
+          "trial": 18
+        },
+        {
+          "capture_loss_percent": 40.0,
+          "detection_ms": 3529,
+          "lost_packets": 32,
+          "source": "ospf_only/trial-19.log",
+          "trial": 19
+        },
+        {
+          "capture_loss_percent": 46.25,
+          "detection_ms": 4039,
+          "lost_packets": 37,
+          "source": "ospf_only/trial-20.log",
+          "trial": 20
+        }
+      ]
+    }
+  },
+  "scenario": "remote_access_uplink_blackhole_repeated",
+  "source": "containerlab_repeated_observation",
+  "trial_count_per_profile": 20
+}

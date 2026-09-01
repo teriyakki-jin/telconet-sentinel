@@ -53,6 +53,48 @@ def test_exposes_latest_experiment_as_prometheus_metrics(redundant_topology: Top
     assert 'telconet_detection_seconds{profile="bfd_100x3"} 0.3' in response.text
 
 
+def test_exposes_repeated_trial_metrics_when_evidence_is_available(
+    redundant_topology: Topology,
+) -> None:
+    evidence = {
+        "profiles": {
+            profile: {
+                "observed_detection_upper_bound_ms": 300,
+                "packets_lost_until_failover": 2,
+                "capture_packet_loss_percent": 1.5,
+            }
+            for profile in ("ospf_only", "bfd_100x3")
+        }
+    }
+    repeated = {
+        "trial_count_per_profile": 20,
+        "profiles": {
+            profile: {
+                "detection_ms": {"p50": 300, "p95": 350, "max": 400},
+                "trials": [
+                    {"trial": trial, "detection_ms": 300 + trial}
+                    for trial in range(1, 21)
+                ],
+            }
+            for profile in ("ospf_only", "bfd_100x3")
+        },
+    }
+    client = TestClient(
+        create_app(
+            redundant_topology,
+            experiment_evidence=evidence,
+            repeated_experiment_evidence=repeated,
+        )
+    )
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert 'telconet_trial_detection_seconds{profile="bfd_100x3",trial="20"}' in (
+        response.text
+    )
+
+
 def test_rejects_invalid_experiment_evidence_when_app_starts(
     redundant_topology: Topology,
 ) -> None:

@@ -10,6 +10,7 @@ LAB_FILE = ROOT / "lab" / "telconet.clab.yml"
 INTENT_FILE = ROOT / "lab" / "intent.yml"
 SCENARIO_FILE = ROOT / "scenarios" / "link_failure_lab.sh"
 BFD_SCENARIO_FILE = ROOT / "scenarios" / "bfd_comparison_lab.sh"
+REPEATED_SCENARIO_FILE = ROOT / "scenarios" / "bfd_repeated_trials_lab.sh"
 
 
 def test_intent_is_single_source_for_impact_topology() -> None:
@@ -127,3 +128,25 @@ def test_bfd_scenario_uses_remote_blackhole_and_two_profiles() -> None:
     assert "capture_profile ospf_only" in scenario
     assert "capture_profile bfd_100x3" in scenario
     assert "python3 -m telconet_sentinel.bfd_comparison" in scenario
+
+
+def test_repeated_scenario_runs_twenty_paired_profiles() -> None:
+    scenario = REPEATED_SCENARIO_FILE.read_text(encoding="utf-8")
+
+    assert 'trials="${TELCONET_TRIALS:-20}"' in scenario
+    assert "ping -D -i 0.1 -c 80" in scenario
+    assert "tc qdisc add dev eth1 clsact" in scenario
+    assert "tc filter add dev eth1 ingress protocol all pref 1 flower action drop" in (
+        scenario
+    )
+    assert "no ip ospf bfd" in scenario
+    assert "Session count: 0" in scenario
+    assert "capture_profile ospf_only" in scenario
+    assert "capture_profile bfd_100x3" in scenario
+    assert (
+        "disable_bfd_profile\n  wait_for_no_bfd\n  wait_for_metric 30\n  "
+        "capture_profile ospf_only"
+        in scenario
+    )
+    assert "python3 -m telconet_sentinel.repeated_trials" in scenario
+    assert "bfd-repeated-trials.json" in scenario

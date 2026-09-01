@@ -69,6 +69,19 @@ def test_parses_remote_blackhole_detection_from_timestamps() -> None:
     assert result["failover"]["ospf_metric"] == 140
 
 
+def test_parses_busybox_ping_summary_with_icmp_errors() -> None:
+    log_with_errors = OSPF_LOG.replace(
+        "6 packets transmitted, 3 received, 50% packet loss",
+        "6 packets transmitted, 3 received, +1 errors, 50% packet loss",
+    )
+
+    result = parse_detection_log(log_with_errors)
+
+    assert result["packets_transmitted"] == 6
+    assert result["packets_received"] == 3
+    assert result["capture_packet_loss_percent"] == 50.0
+
+
 def test_builds_ospf_and_bfd_comparison() -> None:
     comparison = build_comparison(OSPF_LOG, BFD_LOG)
 

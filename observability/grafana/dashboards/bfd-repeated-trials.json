@@ -1,0 +1,211 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Single-run comparison",
+      "type": "link",
+      "url": "/d/telconet-bfd-comparison"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "continuous-GrYlRd"}, "decimals": 3, "unit": "s"},
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "telconet_detection_summary_seconds{stat=\"p50\"}",
+          "instant": true,
+          "legendFormat": "{{profile}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "p50 detection upper bound",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "continuous-GrYlRd"}, "decimals": 3, "unit": "s"},
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 0},
+      "id": 2,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "telconet_detection_summary_seconds{stat=\"p95\"}",
+          "instant": true,
+          "legendFormat": "{{profile}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "p95 detection upper bound",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "continuous-GrYlRd"}, "decimals": 3, "unit": "s"},
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 0},
+      "id": 3,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "telconet_detection_summary_seconds{stat=\"max\"}",
+          "instant": true,
+          "legendFormat": "{{profile}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Maximum detection upper bound",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 50},
+              {"color": "green", "value": 80}
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 0},
+      "id": 4,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "(sum(telconet_detection_summary_seconds{profile=\"ospf_only\",stat=\"p95\"}) - sum(telconet_detection_summary_seconds{profile=\"bfd_100x3\",stat=\"p95\"})) / sum(telconet_detection_summary_seconds{profile=\"ospf_only\",stat=\"p95\"}) * 100",
+          "instant": true,
+          "legendFormat": "reduction",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "p95 detection reduction",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "continuous-GrYlRd"}, "decimals": 3, "unit": "s"},
+        "overrides": []
+      },
+      "gridPos": {"h": 22, "w": 24, "x": 0, "y": 5},
+      "id": 5,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 10,
+        "minVizWidth": 4,
+        "namePlacement": "left",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showUnfilled": true,
+        "sizing": "manual",
+        "valueMode": "color"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "telconet_trial_detection_seconds",
+          "instant": true,
+          "legendFormat": "{{profile}} · trial {{trial}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "All measured trials",
+      "type": "bargauge"
+    },
+    {
+      "gridPos": {"h": 5, "w": 24, "x": 0, "y": 27},
+      "id": 6,
+      "options": {
+        "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
+        "content": "### Repeated measurement contract\n\n- **Samples:** 20 paired OSPF-only and BFD trials.\n- **Fault:** 100% ingress loss on `agg1:eth1`; carrier remains up.\n- **Probe:** 80 ICMP packets at 100 ms intervals.\n- **Reported:** nearest-rank p95 plus p50 and maximum upper bounds.\n- Results are checked-in local containerlab observations, not production SLOs.",
+        "mode": "markdown"
+      },
+      "title": "Experiment context",
+      "type": "text"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 41,
+  "tags": ["telconet", "ospf", "bfd", "distribution", "containerlab"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "TelcoNet Sentinel · 20-Trial Distribution",
+  "uid": "telconet-bfd-repeated-trials",
+  "version": 1
+}
