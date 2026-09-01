@@ -19,18 +19,35 @@
 
 6대의 FRR 라우터를 single Area 0에 배치하고, `/31` point-to-point transit와 `/32` loopback router-id를 사용했습니다. 가입자·서비스 interface는 passive로 두어 prefix만 광고합니다. 자동 cost 대신 primary `10`, backup `100`, inter-core `20`을 명시해 장애 전후 경로를 계산 가능하게 만들었습니다.
 
-```mermaid
-flowchart LR
-    A1[access1] ==>|10| G1[agg1]
-    A1 -.->|100| G2[agg2]
-    A2[access2] -.->|100| G1
-    A2 ==>|10| G2
-    G1 ==>|10| C1[core1]
-    G1 -.->|100| C2[core2]
-    G2 -.->|100| C1
-    G2 ==>|10| C2
-    C1 ---|20| C2
-    C1 ---|10| SVC[10.20.0.0/24]
+```text
+================================================================================
+                         OSPF Area 0 Network Architecture
+================================================================================
+
+             [ Service Network · 10.20.0.0/24 · Cost 10 · Passive ]
+                                   │
+                                   ▼
+         ┌──────────────────┐   Cost 20   ┌──────────────────┐
+         │  core1 · .0.31   ├─────────────┤  core2 · .0.32   │
+         └─────┬────────┬───┘             └───┬────────┬─────┘
+    Primary 10 │        ╲ Backup 100  Backup 100 ╱        │ Primary 10
+               │         ╲                   ╱         │
+               ▼          ╲                 ╱          ▼
+         ┌──────────────────┐             ┌──────────────────┐
+         │  agg1 · .0.21    │             │  agg2 · .0.22    │
+         └─────┬────────┬───┘             └───┬────────┬─────┘
+    Primary 10 │        ╲ Backup 100  Backup 100 ╱        │ Primary 10
+               │         ╲                   ╱         │
+               ▼          ╲                 ╱          ▼
+         ┌──────────────────┐             ┌──────────────────┐
+         │ access1 · .0.11  │             │ access2 · .0.12  │
+         └──────────────────┘             └──────────────────┘
+
+Router-ID prefix: 10.255.0.x/32 · Transit links: /31 point-to-point
+
+access1 primary : access1 → agg1 → core1 → service = 10 + 10 + 10 = 30
+access1 failover: access1 → agg2 → core2 → core1 → service
+                  = 100 + 10 + 20 + 10 = 140
 ```
 
 `access1`의 정상 서비스 경로는 `10 + 10 + 10 = 30`, primary uplink 장애 후 경로는 `100 + 10 + 20 + 10 = 140`입니다. hello/dead timer는 1초/4초이며 BFD 실험에서는 같은 cost 정책을 유지한 채 탐지 계층만 100ms × 3으로 바꿉니다. 주소 계획, router-id, 장애별 경로 계산과 설계 한계는 [OSPF 설계 문서](docs/OSPF_DESIGN.md)에 정리했습니다.
