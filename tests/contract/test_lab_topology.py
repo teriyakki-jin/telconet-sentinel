@@ -11,6 +11,7 @@ INTENT_FILE = ROOT / "lab" / "intent.yml"
 SCENARIO_FILE = ROOT / "scenarios" / "link_failure_lab.sh"
 BFD_SCENARIO_FILE = ROOT / "scenarios" / "bfd_comparison_lab.sh"
 REPEATED_SCENARIO_FILE = ROOT / "scenarios" / "bfd_repeated_trials_lab.sh"
+OSPF_DESIGN_FILE = ROOT / "docs" / "OSPF_DESIGN.md"
 
 
 def test_intent_is_single_source_for_impact_topology() -> None:
@@ -150,3 +151,24 @@ def test_repeated_scenario_runs_twenty_paired_profiles() -> None:
     )
     assert "python3 -m telconet_sentinel.repeated_trials" in scenario
     assert "bfd-repeated-trials.json" in scenario
+
+
+def test_ospf_design_document_tracks_implemented_policy() -> None:
+    design = OSPF_DESIGN_FILE.read_text(encoding="utf-8")
+
+    assert "Area 0" in design
+    assert "point-to-point" in design
+    assert "/31" in design
+    assert "/32" in design
+    assert "hello 1초 / dead 4초" in design
+    assert "10 + 10 + 10 = 30" in design
+    assert "100 + 10 + 20 + 10 = 140" in design
+    for router_id in (
+        "10.255.0.11",
+        "10.255.0.12",
+        "10.255.0.21",
+        "10.255.0.22",
+        "10.255.0.31",
+        "10.255.0.32",
+    ):
+        assert router_id in design

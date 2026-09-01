@@ -15,6 +15,26 @@
 - 임의 명령 실행을 차단한 승인형 복구 절차
 - 테스트 및 JSON evidence 기반 재현성
 
+## OSPF 설계 요약
+
+6대의 FRR 라우터를 single Area 0에 배치하고, `/31` point-to-point transit와 `/32` loopback router-id를 사용했습니다. 가입자·서비스 interface는 passive로 두어 prefix만 광고합니다. 자동 cost 대신 primary `10`, backup `100`, inter-core `20`을 명시해 장애 전후 경로를 계산 가능하게 만들었습니다.
+
+```mermaid
+flowchart LR
+    A1[access1] ==>|10| G1[agg1]
+    A1 -.->|100| G2[agg2]
+    A2[access2] -.->|100| G1
+    A2 ==>|10| G2
+    G1 ==>|10| C1[core1]
+    G1 -.->|100| C2[core2]
+    G2 -.->|100| C1
+    G2 ==>|10| C2
+    C1 ---|20| C2
+    C1 ---|10| SVC[10.20.0.0/24]
+```
+
+`access1`의 정상 서비스 경로는 `10 + 10 + 10 = 30`, primary uplink 장애 후 경로는 `100 + 10 + 20 + 10 = 140`입니다. hello/dead timer는 1초/4초이며 BFD 실험에서는 같은 cost 정책을 유지한 채 탐지 계층만 100ms × 3으로 바꿉니다. 주소 계획, router-id, 장애별 경로 계산과 설계 한계는 [OSPF 설계 문서](docs/OSPF_DESIGN.md)에 정리했습니다.
+
 ## 동작 흐름
 
 ```text
@@ -31,7 +51,7 @@ Topology-aware impact analysis
 
 ## 현재 검증 상태
 
-- 단위·API·랩 계약·evidence 테스트 65개, branch coverage 85.73%
+- 단위·API·랩 계약·evidence 테스트 66개, branch coverage 85.73%
 - 6-router OSPF 구성과 containerlab 선언을 계약 테스트로 검증
 - `access1--agg1` 장애 시 Core 뒤 서비스까지 대체 경로와 `DEGRADED` 판정 검증
 - containerlab 0.79.0 + FRR 10.7.0에서 실제 9-node 랩 기동 검증
