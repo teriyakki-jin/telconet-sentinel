@@ -1,6 +1,8 @@
 # TelcoNet Sentinel
 
 [![validate](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/validate.yml/badge.svg)](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/validate.yml)
+[![CodeQL](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/codeql.yml/badge.svg)](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/teriyakki-jin/telconet-sentinel/badge)](https://scorecard.dev/viewer/?uri=github.com/teriyakki-jin/telconet-sentinel)
 
 **OSPF 이중화 IP망을 직접 설계하고, carrier-up 블랙홀에서 OSPF와 BFD의 장애 탐지 성능을 반복 측정한 네트워크 운영 자동화 프로젝트입니다.**
 
@@ -28,7 +30,7 @@ FRRouting과 containerlab으로 Access–Aggregation–Core 전송망을 구성�
 | 장애 | 링크 carrier는 유지하고 `agg1:eth1` ingress 패킷을 100% 차단하는 원격 블랙홀 |
 | 비교 | OSPF hello/dead 1초/4초 vs BFD minimum TX/RX 100ms, multiplier 3 |
 | 구현 범위 | 망 설계, 실험 자동화, 로그 파서, 영향 분석 API, Prometheus, Grafana, 테스트와 CI |
-| 검증 | 66개 테스트, branch coverage 85.73%, Ruff, mypy, GitHub Actions |
+| 검증 | 66개 테스트, branch coverage 85.73%, Ruff, mypy, CodeQL, OpenSSF Scorecard, GitHub Actions |
 
 ## 문제 정의
 
@@ -243,9 +245,12 @@ bash scenarios/bfd_repeated_trials_lab.sh
 | Contract | intent–containerlab 링크 일치, FRR image/capability, OSPF cost/timer/router-id, dashboard query |
 | Integration | 원시 로그에서 evidence 재계산, configuration fingerprint 일치 |
 | Static | Ruff, strict mypy, Bash syntax |
+| Security | CodeQL `security-extended` query로 Python 취약점·오류 분석 |
+| Supply chain | OpenSSF Scorecard로 dependency pinning·token permission·CI 관행 평가 |
 | CI | push·pull request마다 66개 테스트와 branch coverage 80% gate 실행 |
 
-현재 검증 결과는 **66 tests passed, branch coverage 85.73%**입니다.
+현재 검증 결과는 **66 tests passed, branch coverage 85.73%**입니다. CodeQL과
+OpenSSF Scorecard 결과는 README 상단의 배지에서 최신 실행 상태와 공개 평가를 확인할 수 있습니다.
 
 ## 저장소 구조
 
@@ -277,7 +282,7 @@ telconet-sentinel/
 - Network: containerlab 0.79.0, FRRouting 10.7.0, OSPF, BFD
 - Backend: Python, FastAPI, Pydantic
 - Observability: Prometheus 3.14.0, Grafana 13.1.0
-- Quality: pytest, coverage, Ruff, mypy, GitHub Actions
+- Quality: pytest, coverage, Ruff, mypy, CodeQL, OpenSSF Scorecard, GitHub Actions
 - Packaging: Docker, Docker Compose
 
 상세 문서:
