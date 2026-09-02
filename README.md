@@ -246,11 +246,12 @@ bash scenarios/bfd_repeated_trials_lab.sh
 | Integration | 원시 로그에서 evidence 재계산, configuration fingerprint 일치 |
 | Static | Ruff, strict mypy, Bash syntax |
 | Security | CodeQL `security-extended` query로 Python 취약점·오류 분석 |
-| Supply chain | OpenSSF Scorecard로 dependency pinning·token permission·CI 관행 평가 |
+| Supply chain | OpenSSF Scorecard, SHA-pinned Actions·base image, Dependabot으로 저장소 관행 평가 |
 | CI | push·pull request마다 66개 테스트와 branch coverage 80% gate 실행 |
 
 현재 검증 결과는 **66 tests passed, branch coverage 85.73%**입니다. CodeQL과
 OpenSSF Scorecard 결과는 README 상단의 배지에서 최신 실행 상태와 공개 평가를 확인할 수 있습니다.
+보안 문제는 공개 issue 대신 [Security Policy](SECURITY.md)의 비공개 신고 절차를 사용합니다.
 
 ## 저장소 구조
 
