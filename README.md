@@ -2,7 +2,7 @@
 
 [![validate](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/validate.yml/badge.svg)](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/validate.yml)
 [![CodeQL](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/codeql.yml/badge.svg)](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/codeql.yml)
-[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/teriyakki-jin/telconet-sentinel/badge)](https://scorecard.dev/viewer/?uri=github.com/teriyakki-jin/telconet-sentinel)
+[![OpenSSF Scorecard](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.scorecard.dev%2Fprojects%2Fgithub.com%2Fteriyakki-jin%2Ftelconet-sentinel&query=%24.score&label=OpenSSF%20Scorecard&cacheSeconds=300)](https://scorecard.dev/viewer/?uri=github.com/teriyakki-jin/telconet-sentinel)
 
 **OSPF 이중화 IP망을 직접 설계하고, carrier-up 블랙홀에서 OSPF와 BFD의 장애 탐지 성능을 반복 측정한 네트워크 운영 자동화 프로젝트입니다.**
 
