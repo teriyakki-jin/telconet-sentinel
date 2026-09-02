@@ -8,7 +8,8 @@ Security fixes are applied to the latest commit on the `main` branch.
 
 Do not disclose a suspected vulnerability in a public issue.
 
-Use GitHub's **Security → Report a vulnerability** form to send a private report. Include:
+Use [GitHub's private vulnerability reporting form](https://github.com/teriyakki-jin/telconet-sentinel/security/advisories/new)
+to send a private report. Include:
 
 - the affected file, endpoint, or workflow;
 - steps to reproduce the issue;

@@ -26,3 +26,8 @@ updates:
       time: "09:30"
       timezone: Asia/Seoul
     open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: python
+        update-types:
+          - version-update:semver-major
+          - version-update:semver-minor
