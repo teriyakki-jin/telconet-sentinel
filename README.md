@@ -31,7 +31,7 @@ FRRouting과 containerlab으로 Access–Aggregation–Core 전송망을 구성�
 | 장애 | 링크 carrier는 유지하고 `agg1:eth1` ingress 패킷을 100% 차단하는 원격 블랙홀 |
 | 비교 | OSPF hello/dead 1초/4초 vs BFD minimum TX/RX 100ms, multiplier 3 |
 | 구현 범위 | 망 설계, 실험 자동화, 실시간 수렴 수집기, 영향 분석 API, Prometheus, Grafana, 테스트와 CI |
-| 검증 | 89개 테스트, branch coverage 84.67%, 실제 containerlab E2E, Ruff, mypy, CodeQL, OpenSSF Scorecard |
+| 검증 | 91개 테스트, branch coverage 84.78%, 실제 containerlab E2E, Ruff, mypy, CodeQL, OpenSSF Scorecard |
 
 ## 문제 정의
 
@@ -268,9 +268,9 @@ Live E2E는 랩 배포, BFD 활성화, baseline 검증, blackhole 주입, 다섯
 | Static | Ruff, strict mypy, Bash syntax |
 | Security | CodeQL `security-extended` query로 Python 취약점·오류 분석 |
 | Supply chain | OpenSSF Scorecard, SHA-pinned Actions·base image, Dependabot으로 저장소 관행 평가 |
-| CI | 89개 테스트·branch coverage 80% gate와 실제 containerlab E2E를 독립 workflow로 실행 |
+| CI | 91개 테스트·branch coverage 80% gate와 실제 containerlab E2E를 독립 workflow로 실행 |
 
-현재 로컬 검증 결과는 **89 tests passed, branch coverage 84.67%**입니다. CodeQL과
+현재 로컬 검증 결과는 **91 tests passed, branch coverage 84.78%**입니다. CodeQL과
 OpenSSF Scorecard 결과는 README 상단의 배지에서 최신 실행 상태와 공개 평가를 확인할 수 있습니다.
 보안 문제는 공개 issue 대신 [Security Policy](SECURITY.md)의 비공개 신고 절차를 사용합니다.
 
