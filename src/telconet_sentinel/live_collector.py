@@ -88,7 +88,7 @@ class PingRecovery:
 
 
 class PingRecoveryTracker:
-    _reply_pattern = re.compile(r"\b\d+\s+bytes from .+\bicmp_seq=(\d+)\b")
+    _reply_pattern = re.compile(r"\b\d+\s+bytes from .+\b(?:icmp_)?seq=(\d+)\b")
 
     def __init__(self) -> None:
         self._last_sequence: int | None = None

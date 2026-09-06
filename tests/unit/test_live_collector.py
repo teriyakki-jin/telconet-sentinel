@@ -86,6 +86,17 @@ def test_ignores_non_reply_ping_output() -> None:
     )
 
 
+def test_accepts_busybox_ping_sequence_format() -> None:
+    tracker = PingRecoveryTracker()
+    assert tracker.observe_reply("64 bytes from 10.20.0.10: seq=1 ttl=62", 1) is None
+    tracker.mark_injected()
+
+    recovery = tracker.observe_reply("64 bytes from 10.20.0.10: seq=5 ttl=62", 2)
+
+    assert recovery is not None
+    assert recovery.sequence == 5
+
+
 def test_detects_each_control_and_data_plane_transition_once() -> None:
     detector = LiveTransitionDetector()
 
