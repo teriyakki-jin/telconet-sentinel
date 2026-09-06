@@ -8,6 +8,8 @@ TelcoNet Sentinel separates the network lab, analysis logic, and recovery execut
 flowchart LR
     CLAB["containerlab · FRR routers"] --> EVENT["link event"]
     EVENT --> API["FastAPI incident service"]
+    CLAB --> COLLECTOR["host live collector · 100ms poll"]
+    COLLECTOR -->|"typed convergence events"| API
     INTENT["intent.yml"] --> GRAPH["in-memory topology graph"]
     GRAPH --> IMPACT["cost-aware impact analysis"]
     API --> IMPACT
@@ -18,7 +20,7 @@ flowchart LR
     CLAB --> RAW["timestamped experiment logs"]
     RAW --> EVIDENCE["recalculated JSON evidence"]
     EVIDENCE --> METRICS["FastAPI /metrics"]
-    METRICS --> PROM["Prometheus scrape · 5s"]
+    METRICS --> PROM["Prometheus scrape · 1s"]
     PROM --> GRAFANA["Grafana provisioned dashboard"]
 ```
 
@@ -29,7 +31,9 @@ flowchart LR
 - Only `restore_link` is allowed in Phase 1.
 - The Phase 1 approval endpoint has no operator identity; it changes local typed state only.
 - The local runbook owns privileged lab commands and is not invoked by the API.
+- The host collector owns `docker exec`, reads FRR JSON and continuous ICMP, and sends only typed event fields to the API.
 - The API container does not mount the Docker socket.
+- Live event offsets use a monotonic clock and represent polling-based observation upper bounds.
 
 ## Topology
 
@@ -55,4 +59,5 @@ All router links participate in OSPF area 0. Interface costs create explicit pri
 
 - Phase 1: OSPF cost-aware impact analysis, typed recovery state, scenario evidence.
 - Phase 2: completed BFD remote-failure comparison and Prometheus-compatible evidence metrics.
-- Phase 3: FRR syslog collection, BGP/MPLS L3VPN, and live streaming telemetry.
+- Phase 3: completed live BFD/OSPF/RIB/ICMP convergence timeline and containerlab E2E CI.
+- Phase 4: durable event storage, alerting, BGP/MPLS L3VPN, and streaming telemetry.
