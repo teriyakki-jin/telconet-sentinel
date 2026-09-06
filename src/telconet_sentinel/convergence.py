@@ -16,6 +16,19 @@ class ConvergenceEventKind(str, Enum):
     DATA_PLANE_RECOVERED = "data_plane_recovered"
 
 
+REQUIRED_EVENTS_BY_PROFILE: dict[str, frozenset[ConvergenceEventKind]] = {
+    "ospf_only": frozenset(
+        {
+            ConvergenceEventKind.BLACKHOLE_INJECTED,
+            ConvergenceEventKind.OSPF_NEIGHBOR_DOWN,
+            ConvergenceEventKind.ROUTE_FAILOVER,
+            ConvergenceEventKind.DATA_PLANE_RECOVERED,
+        }
+    ),
+    "bfd_100x3": frozenset(ConvergenceEventKind),
+}
+
+
 @dataclass(frozen=True, slots=True)
 class ConvergenceEvent:
     kind: ConvergenceEventKind
@@ -37,7 +50,8 @@ class ConvergenceRun:
     @property
     def status(self) -> str:
         recorded = {event.kind for event in self.events}
-        return "complete" if recorded == set(ConvergenceEventKind) else "collecting"
+        required = REQUIRED_EVENTS_BY_PROFILE[self.profile]
+        return "complete" if recorded == required else "collecting"
 
 
 class ConvergenceStore:
@@ -56,7 +70,7 @@ class ConvergenceStore:
         target: str,
         started_at: datetime | None = None,
     ) -> ConvergenceRun:
-        if profile not in {"ospf_only", "bfd_100x3"}:
+        if profile not in REQUIRED_EVENTS_BY_PROFILE:
             raise ValueError(f"unsupported convergence profile: {profile}")
         if not source or not target:
             raise ValueError("convergence source and target must not be empty")
@@ -93,6 +107,10 @@ class ConvergenceStore:
             raise ValueError("data_plane_recovered requires a non-negative icmp_sequence")
         with self._lock:
             run = self._lookup(run_id)
+            if event.kind not in REQUIRED_EVENTS_BY_PROFILE[run.profile]:
+                raise ValueError(
+                    f"event {event.kind.value} is not valid for profile {run.profile}"
+                )
             if not run.events and event.kind is not ConvergenceEventKind.BLACKHOLE_INJECTED:
                 raise ValueError("first event must be blackhole_injected")
             if any(recorded.kind is event.kind for recorded in run.events):
@@ -157,9 +175,10 @@ def render_live_metrics(run: ConvergenceRun | None) -> str:
         if ConvergenceEventKind.BLACKHOLE_INJECTED in events
         else 1
     )
+    if run.profile == "bfd_100x3":
+        lines.append(f"telconet_live_bfd_peer_up{{{label}}} {bfd_up}")
     lines.extend(
         [
-            f"telconet_live_bfd_peer_up{{{label}}} {bfd_up}",
             f"telconet_live_ospf_neighbor_full{{{label}}} {ospf_full}",
             f"telconet_live_route_metric{{{label}}} {route_metric}",
             f"telconet_live_data_plane_reachable{{{label}}} {reachable}",

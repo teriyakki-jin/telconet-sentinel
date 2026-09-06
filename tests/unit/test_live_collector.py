@@ -217,6 +217,7 @@ def test_collects_and_publishes_a_complete_live_run(
             self.calls = 0
 
         def sample(self, icmp_sequence: int | None = None) -> LiveSample:
+            trace.append("sample")
             self.calls += 1
             if self.calls == 1:
                 return LiveSample(True, True, 30)
@@ -239,6 +240,7 @@ def test_collects_and_publishes_a_complete_live_run(
     process = FakeProcess()
     ping_output: queue.Queue[tuple[str, int]] = queue.Queue()
     fault_commands: list[tuple[str, ...]] = []
+    trace: list[str] = []
     monkeypatch.setattr(collector, "_start_ping", lambda *_: (process, ping_output))
     monkeypatch.setattr(collector, "_wait_for_ping_baseline", lambda *_: None)
     monkeypatch.setattr(
@@ -249,7 +251,13 @@ def test_collects_and_publishes_a_complete_live_run(
     monkeypatch.setattr(
         collector,
         "_run_command",
-        lambda *command: fault_commands.append(command),
+        lambda *command: (fault_commands.append(command), trace.append(command[4])),
+    )
+    clock_values = iter((1_000_000_000, 1_566_000_000))
+    monkeypatch.setattr(
+        collector.time,
+        "monotonic_ns",
+        lambda: (trace.append("clock"), next(clock_values))[1],
     )
     monkeypatch.setattr(
         collector.subprocess,
@@ -278,6 +286,7 @@ def test_collects_and_publishes_a_complete_live_run(
         "data_plane_recovered",
     ]
     assert len(fault_commands) == 2
+    assert trace == ["sample", "qdisc", "clock", "filter", "sample", "clock"]
     assert process.terminated is True
 
 

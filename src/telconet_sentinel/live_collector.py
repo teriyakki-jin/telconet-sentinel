@@ -359,6 +359,7 @@ def collect_live_convergence(
             fault_interface,
             "clsact",
         )
+        fault_ns = time.monotonic_ns()
         _run_command(
             "docker",
             "exec",
@@ -377,7 +378,6 @@ def collect_live_convergence(
             "action",
             "drop",
         )
-        fault_ns = time.monotonic_ns()
         tracker.mark_injected()
         api.record_event(run_id, LiveTransition("blackhole_injected", 0))
         detector = LiveTransitionDetector()
@@ -387,8 +387,8 @@ def collect_live_convergence(
         while time.monotonic() < deadline:
             recovery = _drain_ping(ping_output, tracker)
             sequence = recovery.sequence if recovery is not None else None
-            offset_ms = max(0, round((time.monotonic_ns() - fault_ns) / 1_000_000))
             sample = probe.sample(icmp_sequence=sequence)
+            offset_ms = max(0, round((time.monotonic_ns() - fault_ns) / 1_000_000))
             transitions = detector.observe(sample, offset_ms)
             for transition in transitions:
                 api.record_event(run_id, transition)

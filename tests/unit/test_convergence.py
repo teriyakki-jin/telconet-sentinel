@@ -63,6 +63,27 @@ def test_records_a_complete_live_convergence_timeline() -> None:
     assert run.events[-1].icmp_sequence == 8
 
 
+def test_ospf_only_run_completes_without_a_fabricated_bfd_event() -> None:
+    store = ConvergenceStore()
+    run = store.create_run("ospf_only", "access1", "10.20.0.10", START)
+    for event in (
+        _event(ConvergenceEventKind.BLACKHOLE_INJECTED, 0),
+        _event(ConvergenceEventKind.OSPF_NEIGHBOR_DOWN, 4_000),
+        _event(ConvergenceEventKind.ROUTE_FAILOVER, 4_100, route_metric=140),
+        _event(
+            ConvergenceEventKind.DATA_PLANE_RECOVERED,
+            4_200,
+            icmp_sequence=45,
+        ),
+    ):
+        store.append_event(run.id, event)
+
+    assert run.status == "complete"
+    assert 'telconet_live_bfd_peer_up{profile="ospf_only"}' not in render_live_metrics(run)
+    with pytest.raises(ValueError, match="not valid for profile"):
+        store.append_event(run.id, _event(ConvergenceEventKind.BFD_DOWN, 4_300))
+
+
 def test_rejects_invalid_or_ambiguous_event_sequences() -> None:
     store = ConvergenceStore()
     run = store.create_run("bfd_100x3", "access1", "10.20.0.10", START)
