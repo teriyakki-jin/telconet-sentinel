@@ -51,15 +51,15 @@ def test_parses_selected_route_metric_with_text_fallback() -> None:
         parse_route_metric("{}")
 
 
-def test_detects_first_successful_ping_after_an_observed_gap() -> None:
+def test_reports_post_fault_ping_replies_and_ignores_pre_fault_queue_entries() -> None:
     tracker = PingRecoveryTracker()
     assert tracker.observe_reply("64 bytes from 10.20.0.10: icmp_seq=1 ttl=61", 10) is None
     assert tracker.observe_reply("64 bytes from 10.20.0.10: icmp_seq=2 ttl=61", 20) is None
     assert tracker.last_sequence == 2
 
-    tracker.mark_injected()
+    tracker.mark_injected(100)
 
-    assert tracker.observe_reply("64 bytes from 10.20.0.10: icmp_seq=3 ttl=61", 30) is None
+    assert tracker.observe_reply("64 bytes from 10.20.0.10: icmp_seq=3 ttl=61", 90) is None
     recovered = tracker.observe_reply(
         "64 bytes from 10.20.0.10: icmp_seq=8 ttl=60 time=0.2 ms",
         498_000_000,
@@ -67,15 +67,17 @@ def test_detects_first_successful_ping_after_an_observed_gap() -> None:
     assert recovered is not None
     assert recovered.sequence == 8
     assert recovered.observed_ns == 498_000_000
-    assert tracker.observe_reply(
+    later_reply = tracker.observe_reply(
         "64 bytes from 10.20.0.10: icmp_seq=9 ttl=60",
         600_000_000,
-    ) is None
+    )
+    assert later_reply is not None
+    assert later_reply.sequence == 9
 
 
 def test_ignores_non_reply_ping_output() -> None:
     tracker = PingRecoveryTracker()
-    tracker.mark_injected()
+    tracker.mark_injected(0)
 
     assert (
         tracker.observe_reply(
@@ -89,7 +91,7 @@ def test_ignores_non_reply_ping_output() -> None:
 def test_accepts_busybox_ping_sequence_format() -> None:
     tracker = PingRecoveryTracker()
     assert tracker.observe_reply("64 bytes from 10.20.0.10: seq=1 ttl=62", 1) is None
-    tracker.mark_injected()
+    tracker.mark_injected(1)
 
     recovery = tracker.observe_reply("64 bytes from 10.20.0.10: seq=5 ttl=62", 2)
 

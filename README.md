@@ -157,7 +157,7 @@ blackhole_injected (0ms)
   → bfd_down
   → ospf_neighbor_down
   → route_failover (metric 30 → 140)
-  → data_plane_recovered (ICMP sequence gap 이후 최초 응답)
+  → data_plane_recovered (RIB failover 확인 뒤 최초 ICMP 응답)
 ```
 
 이 값은 protocol 내부 처리시간 그 자체가 아니라 100ms polling으로 관측한 **수렴 상한**입니다. API는 container나 Docker socket에 접근하지 않고 `event`, `offset_ms`, `route_metric`, `icmp_sequence`로 제한한 typed event만 받습니다. 최신 run은 Prometheus가 1초마다 scrape하고 [Live Convergence Dashboard](http://127.0.0.1:3000/d/telconet-live-convergence)에서 단계별 offset과 BFD·OSPF·RIB·ICMP 상태를 함께 보여줍니다.

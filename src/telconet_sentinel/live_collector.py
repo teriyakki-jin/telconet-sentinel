@@ -92,25 +92,20 @@ class PingRecoveryTracker:
 
     def __init__(self) -> None:
         self._last_sequence: int | None = None
-        self._injected = False
-        self._recovered = False
+        self._injected_ns: int | None = None
 
     def observe_reply(self, line: str, observed_ns: int) -> PingRecovery | None:
         match = self._reply_pattern.search(line)
         if match is None:
             return None
         sequence = int(match.group(1))
-        previous = self._last_sequence
         self._last_sequence = sequence
-        if not self._injected or self._recovered or previous is None:
+        if self._injected_ns is None or observed_ns < self._injected_ns:
             return None
-        if sequence <= previous + 1:
-            return None
-        self._recovered = True
         return PingRecovery(sequence=sequence, observed_ns=observed_ns)
 
-    def mark_injected(self) -> None:
-        self._injected = True
+    def mark_injected(self, observed_ns: int) -> None:
+        self._injected_ns = observed_ns
 
     @property
     def last_sequence(self) -> int | None:
@@ -378,7 +373,7 @@ def collect_live_convergence(
             "action",
             "drop",
         )
-        tracker.mark_injected()
+        tracker.mark_injected(fault_ns)
         api.record_event(run_id, LiveTransition("blackhole_injected", 0))
         detector = LiveTransitionDetector()
         recorded: set[str] = set()
