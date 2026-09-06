@@ -160,7 +160,29 @@ blackhole_injected (0ms)
   → data_plane_recovered (RIB failover 확인 뒤 최초 ICMP 응답)
 ```
 
-이 값은 protocol 내부 처리시간 그 자체가 아니라 100ms polling으로 관측한 **수렴 상한**입니다. API는 container나 Docker socket에 접근하지 않고 `event`, `offset_ms`, `route_metric`, `icmp_sequence`로 제한한 typed event만 받습니다. 최신 run은 Prometheus가 1초마다 scrape하고 [Live Convergence Dashboard](http://127.0.0.1:3000/d/telconet-live-convergence)에서 단계별 offset과 BFD·OSPF·RIB·ICMP 상태를 함께 보여줍니다.
+이 값은 protocol 내부 처리시간 그 자체가 아니라 100ms polling으로 관측한 **수렴 상한**입니다. API는 container나 Docker socket에 접근하지 않고 `event`, `offset_ms`, `route_metric`, `icmp_sequence`로 제한한 typed event만 받습니다.
+
+### 측정 계층과 검증 결과
+
+| 계층 | 시간 기준 | 용도 |
+|---|---|---|
+| Convergence timeline | collector의 monotonic clock, fault 직전부터 FRR·ping 관측 직후까지 | BFD·OSPF·RIB·ICMP의 인과 순서와 sub-second 지연 측정 |
+| Prometheus·Grafana | `/metrics`를 1초마다 scrape | 최신 run 상태와 단계별 offset을 운영 대시보드에서 시계열로 관찰 |
+
+따라서 sub-second 수렴값은 Prometheus sample 간격으로 계산하지 않습니다. 호스트 collector가 남긴 원본 event offset이 측정 근거이고, Prometheus와 [Live Convergence Dashboard](http://127.0.0.1:3000/d/telconet-live-convergence)는 그 결과를 조회하고 운영 상태를 관찰하는 계층입니다.
+
+[main containerlab E2E run](https://github.com/teriyakki-jin/telconet-sentinel/actions/runs/34012546439)에서는 다음 관측 상한을 확인했습니다.
+
+| 결과 | 관측 상한 |
+|---|---:|
+| fault 주입 → BFD·OSPF Down 및 backup route metric 140 확인 | 799ms |
+| RIB failover 확인 후 최초 ICMP 응답 | 1,080ms |
+
+> `799ms`와 `1,080ms`는 실서비스 SLA나 일반화된 OSPF 수렴시간이 아닙니다. 이 저장소의 containerlab 토폴로지, FRR 10.7.0, BFD 100ms × 3, OSPF 설정, 100ms polling과 해당 CI 실행 환경에서 얻은 관측 상한값입니다.
+
+지원서 요약:
+
+> FRR 6노드 containerlab 환경에서 BFD 기반 링크 장애 시 OSPF 우회 경로 수렴을 E2E로 검증했습니다. Collector 원본 타임스탬프로 장애부터 데이터 플레인 복구까지의 인과 순서를 측정하고 Prometheus·Grafana로 시각화했으며, 수렴 관측 상한 799ms와 ICMP 복구 관측 상한 1,080ms를 확인했습니다.
 
 <details>
 <summary>초기 단발 A/B 실험 결과</summary>
