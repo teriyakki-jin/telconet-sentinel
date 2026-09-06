@@ -1,6 +1,7 @@
 # TelcoNet Sentinel
 
 [![validate](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/validate.yml/badge.svg)](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/validate.yml)
+[![containerlab E2E](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/lab-e2e.yml/badge.svg)](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/lab-e2e.yml)
 [![CodeQL](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/codeql.yml/badge.svg)](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.scorecard.dev%2Fprojects%2Fgithub.com%2Fteriyakki-jin%2Ftelconet-sentinel&query=%24.score&label=OpenSSF%20Scorecard&cacheSeconds=300)](https://scorecard.dev/viewer/?uri=github.com/teriyakki-jin/telconet-sentinel)
 
@@ -29,8 +30,8 @@ FRRouting과 containerlab으로 Access–Aggregation–Core 전송망을 구성�
 | 라우팅 | Single Area 0 OSPF, 명시적 cost, `/31` point-to-point transit, `/32` router-id |
 | 장애 | 링크 carrier는 유지하고 `agg1:eth1` ingress 패킷을 100% 차단하는 원격 블랙홀 |
 | 비교 | OSPF hello/dead 1초/4초 vs BFD minimum TX/RX 100ms, multiplier 3 |
-| 구현 범위 | 망 설계, 실험 자동화, 로그 파서, 영향 분석 API, Prometheus, Grafana, 테스트와 CI |
-| 검증 | 66개 테스트, branch coverage 85.73%, Ruff, mypy, CodeQL, OpenSSF Scorecard, GitHub Actions |
+| 구현 범위 | 망 설계, 실험 자동화, 실시간 수렴 수집기, 영향 분석 API, Prometheus, Grafana, 테스트와 CI |
+| 검증 | 92개 테스트, branch coverage 84.81%, 실제 containerlab E2E, Ruff, mypy, CodeQL, OpenSSF Scorecard |
 
 ## 문제 정의
 
@@ -48,6 +49,8 @@ flowchart LR
     LAB["containerlab · FRR"] --> FAULT["carrier-up blackhole"]
     FAULT --> STATE["OSPF/BFD · RIB · traceroute"]
     STATE --> RAW["timestamped raw logs"]
+    STATE --> COLLECTOR["host collector · monotonic clock"]
+    COLLECTOR -->|"typed events only"| API
     RAW --> JSON["recalculated JSON evidence"]
     JSON --> API["FastAPI · impact analysis · /metrics"]
     API --> PROM["Prometheus"]
@@ -145,6 +148,20 @@ OSPF cost  : 100 + 10 + 20 + 10 = 140
 
 통합 테스트는 checked-in JSON을 40개 원시 로그에서 다시 계산하고, 모든 profile이 현재 topology·FRR configuration SHA-256을 사용했는지 확인합니다.
 
+## 실시간 control-plane 수렴 타임라인
+
+반복 실험의 집계 결과뿐 아니라 한 번의 장애에서 protocol과 data plane이 어떤 순서로 수렴하는지도 관측합니다. 호스트 수집기가 FRR의 구조화된 JSON과 연속 ICMP를 100ms 간격으로 확인하고, fault 주입 시점 기준 monotonic offset을 API에 기록합니다.
+
+```text
+blackhole_injected (0ms)
+  → bfd_down
+  → ospf_neighbor_down
+  → route_failover (metric 30 → 140)
+  → data_plane_recovered (RIB failover 확인 뒤 최초 ICMP 응답)
+```
+
+이 값은 protocol 내부 처리시간 그 자체가 아니라 100ms polling으로 관측한 **수렴 상한**입니다. API는 container나 Docker socket에 접근하지 않고 `event`, `offset_ms`, `route_metric`, `icmp_sequence`로 제한한 typed event만 받습니다. 최신 run은 Prometheus가 1초마다 scrape하고 [Live Convergence Dashboard](http://127.0.0.1:3000/d/telconet-live-convergence)에서 단계별 offset과 BFD·OSPF·RIB·ICMP 상태를 함께 보여줍니다.
+
 <details>
 <summary>초기 단발 A/B 실험 결과</summary>
 
@@ -197,6 +214,7 @@ docker compose up -d --build
 |---|---|
 | Grafana | `http://127.0.0.1:3000` |
 | 반복 실험 dashboard | `http://127.0.0.1:3000/d/telconet-bfd-repeated-trials` |
+| Live convergence dashboard | `http://127.0.0.1:3000/d/telconet-live-convergence` |
 | Prometheus | `http://127.0.0.1:9090` |
 | Raw metrics | `http://127.0.0.1:8000/metrics` |
 | API docs | `http://127.0.0.1:8000/docs` |
@@ -232,24 +250,27 @@ python -m pip install -e .
 bash scenarios/link_failure_lab.sh
 bash scenarios/bfd_comparison_lab.sh
 bash scenarios/bfd_repeated_trials_lab.sh
+bash scenarios/live_convergence_e2e.sh
 ```
 
 반복 실험은 기본 20회이며 `TELCONET_TRIALS`로 20~30회 범위에서 조정할 수 있습니다.
+Live E2E는 랩 배포, BFD 활성화, baseline 검증, blackhole 주입, 다섯 단계 수집, evidence 검증, 랩 정리를 한 번에 수행합니다. 결과는 `artifacts/live-convergence/`에 저장되며 CI에서도 동일 스크립트를 실행해 JSON·metrics·로그를 artifact로 보존합니다.
 
 ## 검증과 품질
 
 | 계층 | 검증 내용 |
 |---|---|
-| Unit | OSPF/BFD 로그 파싱, p50/p95/max, topology·impact·recovery 로직 |
-| API | typed request, 영향 분석 응답, 중복 제거, 승인 상태 전이, Prometheus metrics |
-| Contract | intent–containerlab 링크 일치, FRR image/capability, OSPF cost/timer/router-id, dashboard query |
+| Unit | OSPF/BFD JSON 파싱, live transition, p50/p95/max, topology·impact·recovery 로직 |
+| API | typed request, 수렴 event 불변식, 영향 분석, 중복 제거, 승인 상태 전이, Prometheus metrics |
+| Contract | intent–containerlab 링크 일치, FRR image/capability, OSPF 설정, live dashboard·E2E workflow |
 | Integration | 원시 로그에서 evidence 재계산, configuration fingerprint 일치 |
+| Lab E2E | 실제 FRR 6대에서 baseline 30, blackhole, BFD/OSPF down, RIB 140, ICMP 복구 검증 |
 | Static | Ruff, strict mypy, Bash syntax |
 | Security | CodeQL `security-extended` query로 Python 취약점·오류 분석 |
 | Supply chain | OpenSSF Scorecard, SHA-pinned Actions·base image, Dependabot으로 저장소 관행 평가 |
-| CI | push·pull request마다 66개 테스트와 branch coverage 80% gate 실행 |
+| CI | 92개 테스트·branch coverage 80% gate와 실제 containerlab E2E를 독립 workflow로 실행 |
 
-현재 검증 결과는 **66 tests passed, branch coverage 85.73%**입니다. CodeQL과
+현재 로컬 검증 결과는 **92 tests passed, branch coverage 84.81%**입니다. CodeQL과
 OpenSSF Scorecard 결과는 README 상단의 배지에서 최신 실행 상태와 공개 평가를 확인할 수 있습니다.
 보안 문제는 공개 issue 대신 [Security Policy](SECURITY.md)의 비공개 신고 절차를 사용합니다.
 
@@ -258,7 +279,7 @@ OpenSSF Scorecard 결과는 README 상단의 배지에서 최신 실행 상태�
 ```text
 telconet-sentinel/
 ├── lab/                       # containerlab topology, intent, FRR configs
-├── scenarios/                 # carrier-down·blackhole·반복 실험 자동화
+├── scenarios/                 # carrier-down·blackhole·반복·live E2E 자동화
 ├── evidence/                  # raw logs와 재계산된 JSON evidence
 ├── src/telconet_sentinel/     # impact analysis, API, parsers, metrics
 ├── observability/             # Prometheus와 Grafana provisioning
@@ -272,11 +293,11 @@ telconet-sentinel/
 
 - Single Area 0이며 multi-area, BGP, MPLS L3VPN은 포함하지 않음
 - 서비스망이 core1에만 연결되어 service-facing link와 core1이 단일 장애점
-- 실시간 FRR syslog·neighbor exporter와 alert는 아직 연결하지 않음
+- live run은 API 메모리에 최근 20개만 보관하며 장기 시계열 event store와 alert는 포함하지 않음
 - OSPF authentication, 장기 부하, 장비 vendor 간 interoperability는 검증하지 않음
 - 승인 API는 로컬 typed state transition이며 운영자 인증과 실제 복구 실행기는 아님
 
-다음 단계는 `blackhole 주입 → BFD Down → OSPF Neighbor Down → RIB metric 30→140 → ICMP 복구`를 하나의 control-plane 타임라인으로 수집해 Grafana에 표시하는 것입니다.
+다음 단계는 동일 실험을 다중 Area 또는 BGP/MPLS L3VPN으로 확장하고, 장기 event store와 alert rule을 연결하는 것입니다.
 
 ## 기술 스택과 문서
 

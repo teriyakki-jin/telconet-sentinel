@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from telconet_sentinel.api import create_app
+from telconet_sentinel.convergence import ConvergenceStore
 from telconet_sentinel.topology import Topology
 
 
@@ -228,3 +229,117 @@ def test_rejects_oversized_event_fields(redundant_topology: Topology) -> None:
     )
 
     assert response.status_code == 422
+
+
+def _experiment_evidence() -> dict[str, object]:
+    return {
+        "profiles": {
+            profile: {
+                "observed_detection_upper_bound_ms": 300,
+                "packets_lost_until_failover": 2,
+                "capture_packet_loss_percent": 1.5,
+            }
+            for profile in ("ospf_only", "bfd_100x3")
+        }
+    }
+
+
+def test_creates_and_reads_a_live_convergence_run(redundant_topology: Topology) -> None:
+    store = ConvergenceStore()
+    client = TestClient(create_app(redundant_topology, convergence_store=store))
+
+    missing = client.get("/api/convergence-runs/latest")
+    created = client.post(
+        "/api/convergence-runs",
+        json={
+            "profile": "bfd_100x3",
+            "source": "access1",
+            "target": "10.20.0.10",
+        },
+    )
+
+    assert missing.status_code == 404
+    assert created.status_code == 201
+    assert created.json()["status"] == "collecting"
+    assert created.json()["events"] == []
+    latest = client.get("/api/convergence-runs/latest")
+    assert latest.status_code == 200
+    assert latest.json()["id"] == created.json()["id"]
+
+
+def test_records_live_events_and_exposes_current_metrics(
+    redundant_topology: Topology,
+) -> None:
+    store = ConvergenceStore()
+    client = TestClient(
+        create_app(
+            redundant_topology,
+            experiment_evidence=_experiment_evidence(),
+            convergence_store=store,
+        )
+    )
+    started_at = datetime.now(timezone.utc)
+    run = client.post(
+        "/api/convergence-runs",
+        json={
+            "profile": "bfd_100x3",
+            "source": "access1",
+            "target": "10.20.0.10",
+            "started_at": started_at.isoformat(),
+        },
+    ).json()
+
+    events = [
+        {"event": "blackhole_injected", "offset_ms": 0},
+        {"event": "bfd_down", "offset_ms": 312},
+        {"event": "ospf_neighbor_down", "offset_ms": 338},
+        {"event": "route_failover", "offset_ms": 421, "route_metric": 140},
+        {
+            "event": "data_plane_recovered",
+            "offset_ms": 498,
+            "icmp_sequence": 8,
+        },
+    ]
+    for event in events:
+        response = client.post(f"/api/convergence-runs/{run['id']}/events", json=event)
+        assert response.status_code == 201
+
+    assert response.json()["status"] == "complete"
+    assert response.json()["events"][-1]["icmp_sequence"] == 8
+    metrics = client.get("/metrics").text
+    assert (
+        'telconet_live_event_offset_seconds{event="route_failover",profile="bfd_100x3"} '
+        "0.421" in metrics
+    )
+
+
+def test_rejects_invalid_or_duplicate_live_events(redundant_topology: Topology) -> None:
+    client = TestClient(create_app(redundant_topology))
+    run = client.post(
+        "/api/convergence-runs",
+        json={
+            "profile": "bfd_100x3",
+            "source": "access1",
+            "target": "10.20.0.10",
+        },
+    ).json()
+    endpoint = f"/api/convergence-runs/{run['id']}/events"
+
+    invalid = client.post(endpoint, json={"event": "bfd_down", "offset_ms": -1})
+    first = client.post(
+        endpoint,
+        json={"event": "blackhole_injected", "offset_ms": 0},
+    )
+    duplicate = client.post(
+        endpoint,
+        json={"event": "blackhole_injected", "offset_ms": 1},
+    )
+    missing = client.post(
+        "/api/convergence-runs/missing/events",
+        json={"event": "blackhole_injected", "offset_ms": 0},
+    )
+
+    assert invalid.status_code == 422
+    assert first.status_code == 201
+    assert duplicate.status_code == 409
+    assert missing.status_code == 404

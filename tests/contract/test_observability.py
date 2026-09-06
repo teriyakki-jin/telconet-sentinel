@@ -48,7 +48,7 @@ def test_prometheus_scrapes_the_api_metrics_endpoint() -> None:
     job = next(item for item in config["scrape_configs"] if item["job_name"] == "telconet")
 
     assert job["metrics_path"] == "/metrics"
-    assert job["scrape_interval"] == "5s"
+    assert job["scrape_interval"] == "1s"
     assert job["static_configs"] == [{"targets": ["api:8000"]}]
 
 

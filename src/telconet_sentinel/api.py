@@ -1,10 +1,17 @@
-from datetime import datetime
-from typing import Any
+from datetime import datetime, timezone
+from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import PlainTextResponse
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, IPvAnyAddress
 
+from .convergence import (
+    ConvergenceEvent,
+    ConvergenceEventKind,
+    ConvergenceRun,
+    ConvergenceStore,
+    render_live_metrics,
+)
 from .metrics import (
     render_experiment_metrics,
     validate_experiment_evidence,
@@ -40,6 +47,43 @@ class IncidentResponse(BaseModel):
     created_at: datetime
 
 
+class ConvergenceRunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    profile: Literal["ospf_only", "bfd_100x3"]
+    source: str = Field(min_length=1, max_length=64, pattern=r"^[a-z0-9-]+$")
+    target: IPvAnyAddress
+    started_at: AwareDatetime | None = None
+
+
+class ConvergenceEventRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    event: ConvergenceEventKind
+    offset_ms: int = Field(ge=0, le=60_000)
+    observed_at: AwareDatetime | None = None
+    route_metric: int | None = Field(default=None, ge=1, le=65_535)
+    icmp_sequence: int | None = Field(default=None, ge=0)
+
+
+class ConvergenceEventResponse(BaseModel):
+    event: ConvergenceEventKind
+    offset_ms: int
+    observed_at: datetime
+    route_metric: int | None
+    icmp_sequence: int | None
+
+
+class ConvergenceRunResponse(BaseModel):
+    id: str
+    profile: str
+    source: str
+    target: str
+    started_at: datetime
+    status: str
+    events: list[ConvergenceEventResponse]
+
+
 def _incident_response(incident: Incident) -> IncidentResponse:
     return IncidentResponse(
         id=incident.id,
@@ -57,10 +101,32 @@ def _incident_response(incident: Incident) -> IncidentResponse:
     )
 
 
+def _convergence_response(run: ConvergenceRun) -> ConvergenceRunResponse:
+    return ConvergenceRunResponse(
+        id=run.id,
+        profile=run.profile,
+        source=run.source,
+        target=run.target,
+        started_at=run.started_at,
+        status=run.status,
+        events=[
+            ConvergenceEventResponse(
+                event=event.kind,
+                offset_ms=event.offset_ms,
+                observed_at=event.observed_at,
+                route_metric=event.route_metric,
+                icmp_sequence=event.icmp_sequence,
+            )
+            for event in run.events
+        ],
+    )
+
+
 def create_app(
     topology: Topology,
     experiment_evidence: dict[str, Any] | None = None,
     repeated_experiment_evidence: dict[str, Any] | None = None,
+    convergence_store: ConvergenceStore | None = None,
 ) -> FastAPI:
     if experiment_evidence is not None:
         validate_experiment_evidence(experiment_evidence)
@@ -72,6 +138,7 @@ def create_app(
         description="Topology-aware incident analysis for a simulated IP transport network.",
     )
     service = IncidentService(topology)
+    live_store = convergence_store or ConvergenceStore()
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -87,6 +154,7 @@ def create_app(
         rendered = render_experiment_metrics(
             experiment_evidence, repeated_experiment_evidence
         )
+        rendered += render_live_metrics(live_store.latest())
         return PlainTextResponse(rendered, media_type="text/plain; version=0.0.4")
 
     @app.get("/api/topology")
@@ -110,6 +178,67 @@ def create_app(
                 for link in topology.links
             ],
         }
+
+    @app.post(
+        "/api/convergence-runs",
+        response_model=ConvergenceRunResponse,
+        status_code=status.HTTP_201_CREATED,
+    )
+    def create_convergence_run(request: ConvergenceRunRequest) -> ConvergenceRunResponse:
+        run = live_store.create_run(
+            profile=request.profile,
+            source=request.source,
+            target=str(request.target),
+            started_at=request.started_at,
+        )
+        return _convergence_response(run)
+
+    @app.get(
+        "/api/convergence-runs/latest",
+        response_model=ConvergenceRunResponse,
+    )
+    def get_latest_convergence_run() -> ConvergenceRunResponse:
+        run = live_store.latest()
+        if run is None:
+            raise HTTPException(status_code=404, detail="convergence run not found")
+        return _convergence_response(run)
+
+    @app.get(
+        "/api/convergence-runs/{run_id}",
+        response_model=ConvergenceRunResponse,
+    )
+    def get_convergence_run(run_id: str) -> ConvergenceRunResponse:
+        try:
+            return _convergence_response(live_store.get(run_id))
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post(
+        "/api/convergence-runs/{run_id}/events",
+        response_model=ConvergenceRunResponse,
+        status_code=status.HTTP_201_CREATED,
+    )
+    def record_convergence_event(
+        run_id: str,
+        request: ConvergenceEventRequest,
+    ) -> ConvergenceRunResponse:
+        observed_at = request.observed_at or datetime.now(timezone.utc)
+        try:
+            run = live_store.append_event(
+                run_id,
+                ConvergenceEvent(
+                    kind=request.event,
+                    offset_ms=request.offset_ms,
+                    observed_at=observed_at,
+                    route_metric=request.route_metric,
+                    icmp_sequence=request.icmp_sequence,
+                ),
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return _convergence_response(run)
 
     @app.post(
         "/api/events",

@@ -8,6 +8,7 @@ htmlcov/
 .ruff_cache/
 .clab/
 clab-*/
+artifacts/
 evidence/*.json
 !evidence/example-simulated-link-failure.json
 !evidence/measured-link-failure.json
