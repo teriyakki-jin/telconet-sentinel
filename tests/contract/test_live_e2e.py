@@ -64,6 +64,9 @@ def test_e2e_script_has_a_cleanup_trap_and_uses_the_live_collector() -> None:
     )
 
     assert "containerlab deploy" in script
+    assert "route-baseline.json" in script
+    assert "bfd-baseline.json" in script
+    assert "ospf-baseline.json" in script
     assert "telconet_sentinel.live_collector" in script
     assert "assert events == required" in script
     assert "containerlab destroy" in script

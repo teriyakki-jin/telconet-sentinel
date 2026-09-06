@@ -63,14 +63,29 @@ if docker ps -a --format '{{.Names}}' | grep -q '^clab-telconet-sentinel-'; then
 fi
 deploy_lab 2>&1 | tee "${artifact_dir}/deploy.log"
 
+for _ in $(seq 1 30); do
+  if docker exec "${access_1}" \
+    vtysh -c "show ip route 10.20.0.0/24 json" \
+    >"${artifact_dir}/route-baseline.json" 2>"${artifact_dir}/route-baseline.err" &&
+    grep -Eq '"metric"[[:space:]]*:[[:space:]]*30' \
+      "${artifact_dir}/route-baseline.json"; then
+    break
+  fi
+  sleep 1
+done
+grep -Eq '"metric"[[:space:]]*:[[:space:]]*30' \
+  "${artifact_dir}/route-baseline.json"
+
 docker exec "${access_1}" vtysh \
   -c "configure terminal" \
   -c "interface eth1" \
-  -c "ip ospf bfd 3 100 100" >/dev/null
+  -c "ip ospf bfd 3 100 100" \
+  >>"${artifact_dir}/bfd-enable.log" 2>&1
 docker exec "${agg_1}" vtysh \
   -c "configure terminal" \
   -c "interface eth1" \
-  -c "ip ospf bfd 3 100 100" >/dev/null
+  -c "ip ospf bfd 3 100 100" \
+  >>"${artifact_dir}/bfd-enable.log" 2>&1
 
 for _ in $(seq 1 30); do
   if docker exec "${access_1}" vtysh -c "show bfd peer 10.0.1.1 json" |
@@ -81,6 +96,10 @@ for _ in $(seq 1 30); do
 done
 docker exec "${access_1}" vtysh -c "show bfd peer 10.0.1.1 json" |
   grep -Eq '"status"[[:space:]]*:[[:space:]]*"up"'
+docker exec "${access_1}" vtysh -c "show bfd peer 10.0.1.1 json" \
+  >"${artifact_dir}/bfd-baseline.json" 2>"${artifact_dir}/bfd-baseline.err"
+docker exec "${access_1}" vtysh -c "show ip ospf neighbor json" \
+  >"${artifact_dir}/ospf-baseline.json" 2>"${artifact_dir}/ospf-baseline.err"
 
 if [[ -z "${TELCONET_API_URL:-}" ]]; then
   "${python_command[@]}" -m uvicorn telconet_sentinel.main:app \
