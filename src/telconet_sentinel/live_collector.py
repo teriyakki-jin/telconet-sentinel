@@ -140,25 +140,29 @@ class LiveTransitionDetector:
 
     def observe(self, sample: LiveSample, offset_ms: int) -> list[LiveTransition]:
         candidates = (
-            LiveTransition("bfd_down", offset_ms) if not sample.bfd_up else None,
-            LiveTransition("ospf_neighbor_down", offset_ms) if not sample.ospf_full else None,
-            LiveTransition("route_failover", offset_ms, route_metric=sample.route_metric)
-            if sample.route_metric == self._failover_metric
-            else None,
-            LiveTransition(
-                "data_plane_recovered",
-                offset_ms,
-                icmp_sequence=sample.icmp_sequence,
-            )
-            if sample.icmp_sequence is not None
-            else None,
+            (not sample.bfd_up, LiveTransition("bfd_down", offset_ms)),
+            (not sample.ospf_full, LiveTransition("ospf_neighbor_down", offset_ms)),
+            (
+                sample.route_metric == self._failover_metric,
+                LiveTransition("route_failover", offset_ms, route_metric=sample.route_metric),
+            ),
+            (
+                sample.icmp_sequence is not None,
+                LiveTransition(
+                    "data_plane_recovered",
+                    offset_ms,
+                    icmp_sequence=sample.icmp_sequence,
+                ),
+            ),
         )
-        transitions = [
-            candidate
-            for candidate in candidates
-            if candidate is not None and candidate.event not in self._recorded
-        ]
-        self._recorded.update(transition.event for transition in transitions)
+        transitions = []
+        for observed, candidate in candidates:
+            if candidate.event in self._recorded:
+                continue
+            if not observed:
+                break
+            transitions.append(candidate)
+            self._recorded.add(candidate.event)
         return transitions
 
 
@@ -233,7 +237,7 @@ class DockerFrrProbe:
         self._route_prefix = route_prefix
 
     def sample(self, icmp_sequence: int | None = None) -> LiveSample:
-        bfd = self._vtysh(f"show bfd peer {self._peer} json")
+        bfd = self._vtysh("show bfd peers json")
         ospf = self._vtysh("show ip ospf neighbor json")
         route = self._vtysh(f"show ip route {self._route_prefix} json")
         return LiveSample(

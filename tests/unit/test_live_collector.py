@@ -114,9 +114,23 @@ def test_detects_each_control_and_data_plane_transition_once() -> None:
     assert detector.observe(LiveSample(False, False, 140, 9), 600) == []
 
 
+def test_holds_later_transition_until_causal_prerequisites_are_observed() -> None:
+    detector = LiveTransitionDetector()
+
+    assert detector.observe(LiveSample(True, True, 140), 285) == []
+    transitions = detector.observe(LiveSample(False, False, 140), 410)
+
+    assert [transition.event for transition in transitions] == [
+        "bfd_down",
+        "ospf_neighbor_down",
+        "route_failover",
+    ]
+    assert all(transition.offset_ms == 410 for transition in transitions)
+
+
 def test_docker_probe_collects_one_typed_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
     outputs = {
-        "show bfd peer 10.0.1.1 json": '{"10.0.1.1":[{"status":"up"}]}',
+        "show bfd peers json": '{"10.0.1.1":[{"status":"up"}]}',
         "show ip ospf neighbor json": (
             '{"neighbors":[{"address":"10.0.1.1","nbrState":"Full/P2P"}]}'
         ),
