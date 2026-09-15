@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .api import create_app
 from .config import load_topology
+from .convergence import ConvergenceStore, SQLiteConvergenceStore
 from .metrics import load_experiment_evidence, load_repeated_experiment_evidence
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -30,6 +31,15 @@ repeated_experiment_evidence = (
     if REPEATED_EXPERIMENT_PATH.is_file()
     else None
 )
+state_database = os.environ.get("TELCONET_STATE_DB")
+convergence_store = (
+    SQLiteConvergenceStore(Path(state_database))
+    if state_database
+    else ConvergenceStore()
+)
 app = create_app(
-    load_topology(INTENT_PATH), experiment_evidence, repeated_experiment_evidence
+    load_topology(INTENT_PATH),
+    experiment_evidence,
+    repeated_experiment_evidence,
+    convergence_store,
 )

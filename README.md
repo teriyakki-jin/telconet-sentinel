@@ -30,8 +30,8 @@ FRRouting과 containerlab으로 Access–Aggregation–Core 전송망을 구성�
 | 라우팅 | Single Area 0 OSPF, 명시적 cost, `/31` point-to-point transit, `/32` router-id |
 | 장애 | 링크 carrier는 유지하고 `agg1:eth1` ingress 패킷을 100% 차단하는 원격 블랙홀 |
 | 비교 | OSPF hello/dead 1초/4초 vs BFD minimum TX/RX 100ms, multiplier 3 |
-| 구현 범위 | 망 설계, 실험 자동화, 실시간 수렴 수집기, 영향 분석 API, Prometheus, Grafana, 테스트와 CI |
-| 검증 | 92개 테스트, branch coverage 84.81%, 실제 containerlab E2E, Ruff, mypy, CodeQL, OpenSSF Scorecard |
+| 구현 범위 | 망 설계, 실험 자동화, 실시간 수렴 수집기, SQLite event store, 영향 분석 API, Prometheus alert, Grafana, 테스트와 CI |
+| 검증 | 98개 테스트, branch coverage 85.27%, 실제 containerlab E2E, Ruff, mypy, promtool, CodeQL, OpenSSF Scorecard |
 
 ## 문제 정의
 
@@ -53,7 +53,9 @@ flowchart LR
     COLLECTOR -->|"typed events only"| API
     RAW --> JSON["recalculated JSON evidence"]
     JSON --> API["FastAPI · impact analysis · /metrics"]
+    API --> DB[("SQLite · recent 20 runs")]
     API --> PROM["Prometheus"]
+    PROM --> ALERT["simulation alert rules"]
     PROM --> GRAFANA["Grafana"]
     JSON --> TEST["contract · integration tests"]
 ```
@@ -162,6 +164,8 @@ blackhole_injected (0ms)
 
 이 값은 protocol 내부 처리시간 그 자체가 아니라 100ms polling으로 관측한 **수렴 상한**입니다. API는 container나 Docker socket에 접근하지 않고 `event`, `offset_ms`, `route_metric`, `icmp_sequence`로 제한한 typed event만 받습니다.
 
+수렴 run과 event는 API 컨테이너의 SQLite named volume에 최근 20건을 보존합니다. 프로세스나 컨테이너가 재시작되어도 마지막 타임라인을 다시 조회할 수 있고, run 삭제 시 연결된 event도 함께 정리됩니다. 이 저장소는 단일 로컬 API 인스턴스를 위한 bounded state이며 장기 telemetry database를 대신하지 않습니다.
+
 ### 측정 계층과 검증 결과
 
 | 계층 | 시간 기준 | 용도 |
@@ -170,6 +174,8 @@ blackhole_injected (0ms)
 | Prometheus·Grafana | `/metrics`를 1초마다 scrape | 최신 run 상태와 단계별 offset을 운영 대시보드에서 시계열로 관찰 |
 
 따라서 sub-second 수렴값은 Prometheus sample 간격으로 계산하지 않습니다. 호스트 collector가 남긴 원본 event offset이 측정 근거이고, Prometheus와 [Live Convergence Dashboard](http://127.0.0.1:3000/d/telconet-live-convergence)는 그 결과를 조회하고 운영 상태를 관찰하는 계층입니다.
+
+Prometheus는 API scrape 실패, 미완료 수렴, data-plane 미복구 상태가 20초간 지속될 때 simulation alert를 firing합니다. `20초`는 이상 상태가 지속되는지 확인하기 위한 로컬 랩 가드레일이며 서비스 성능 목표가 아닙니다. 규칙 문법과 firing 시점은 CI에서 `promtool`로 검증하고, Grafana의 **Firing simulation alerts** panel에서 현재 상태를 확인합니다.
 
 [main containerlab E2E run](https://github.com/teriyakki-jin/telconet-sentinel/actions/runs/34012546439)에서는 다음 관측 상한을 확인했습니다.
 
@@ -238,10 +244,12 @@ docker compose up -d --build
 | 반복 실험 dashboard | `http://127.0.0.1:3000/d/telconet-bfd-repeated-trials` |
 | Live convergence dashboard | `http://127.0.0.1:3000/d/telconet-live-convergence` |
 | Prometheus | `http://127.0.0.1:9090` |
+| Prometheus alerts | `http://127.0.0.1:9090/alerts` |
 | Raw metrics | `http://127.0.0.1:8000/metrics` |
 | API docs | `http://127.0.0.1:8000/docs` |
 
 모든 포트는 loopback에만 공개합니다. Grafana dashboard와 datasource는 file provisioning하며 anonymous read-only viewer로 실행합니다.
+SQLite 파일은 `telconet-state` named volume에 저장되어 `docker compose down` 후에도 유지됩니다. 완전히 초기화하려는 경우에만 volume 삭제 여부를 별도로 결정하십시오.
 
 ```bash
 docker compose down
@@ -282,17 +290,17 @@ Live E2E는 랩 배포, BFD 활성화, baseline 검증, blackhole 주입, 다섯
 
 | 계층 | 검증 내용 |
 |---|---|
-| Unit | OSPF/BFD JSON 파싱, live transition, p50/p95/max, topology·impact·recovery 로직 |
-| API | typed request, 수렴 event 불변식, 영향 분석, 중복 제거, 승인 상태 전이, Prometheus metrics |
-| Contract | intent–containerlab 링크 일치, FRR image/capability, OSPF 설정, live dashboard·E2E workflow |
+| Unit | OSPF/BFD JSON 파싱, live transition, SQLite 보존·pruning·atomicity, p50/p95/max, topology·impact·recovery 로직 |
+| API | typed request, 재시작 후 수렴 event 조회, 영향 분석, 중복 제거, 승인 상태 전이, Prometheus metrics |
+| Contract | intent–containerlab 링크 일치, FRR image/capability, OSPF 설정, dashboard·alert rule·E2E workflow |
 | Integration | 원시 로그에서 evidence 재계산, configuration fingerprint 일치 |
 | Lab E2E | 실제 FRR 6대에서 baseline 30, blackhole, BFD/OSPF down, RIB 140, ICMP 복구 검증 |
 | Static | Ruff, strict mypy, Bash syntax |
 | Security | CodeQL `security-extended` query로 Python 취약점·오류 분석 |
 | Supply chain | OpenSSF Scorecard, SHA-pinned Actions·base image, Dependabot으로 저장소 관행 평가 |
-| CI | 92개 테스트·branch coverage 80% gate와 실제 containerlab E2E를 독립 workflow로 실행 |
+| CI | 98개 테스트·branch coverage 80% gate, promtool rule test와 실제 containerlab E2E를 독립 workflow로 실행 |
 
-현재 로컬 검증 결과는 **92 tests passed, branch coverage 84.81%**입니다. CodeQL과
+현재 로컬 검증 결과는 **98 tests passed, branch coverage 85.27%**입니다. CodeQL과
 OpenSSF Scorecard 결과는 README 상단의 배지에서 최신 실행 상태와 공개 평가를 확인할 수 있습니다.
 보안 문제는 공개 issue 대신 [Security Policy](SECURITY.md)의 비공개 신고 절차를 사용합니다.
 
@@ -315,11 +323,12 @@ telconet-sentinel/
 
 - Single Area 0이며 multi-area, BGP, MPLS L3VPN은 포함하지 않음
 - 서비스망이 core1에만 연결되어 service-facing link와 core1이 단일 장애점
-- live run은 API 메모리에 최근 20개만 보관하며 장기 시계열 event store와 alert는 포함하지 않음
+- live run은 SQLite에 최근 20개만 보관하므로 분산 API와 장기 시계열 보존은 지원하지 않음
+- alert rule은 로컬 Prometheus에서 평가하지만 Alertmanager 알림 전송과 on-call 연동은 포함하지 않음
 - OSPF authentication, 장기 부하, 장비 vendor 간 interoperability는 검증하지 않음
 - 승인 API는 로컬 typed state transition이며 운영자 인증과 실제 복구 실행기는 아님
 
-다음 단계는 동일 실험을 다중 Area 또는 BGP/MPLS L3VPN으로 확장하고, 장기 event store와 alert rule을 연결하는 것입니다.
+다음 단계는 동일 실험을 다중 Area 또는 BGP/MPLS L3VPN으로 확장하고, 장기 event store와 Alertmanager 기반 알림 전달을 연결하는 것입니다.
 
 ## 기술 스택과 문서
 
@@ -334,5 +343,6 @@ telconet-sentinel/
 - [OSPF 설계](docs/OSPF_DESIGN.md)
 - [시스템 아키텍처와 신뢰 경계](docs/ARCHITECTURE.md)
 - [링크 장애 실험 Runbook](docs/RUNBOOK_LINK_FAILURE.md)
+- [수렴 상태와 알림 Runbook](docs/RUNBOOK_ALERTS.md)
 
 BFD와 OSPF 설정은 [FRRouting BFD 문서](https://docs.frrouting.org/en/latest/bfd.html)와 [FRRouting OSPF 문서](https://docs.frrouting.org/en/latest/ospfd.html)를 기준으로 작성했습니다.

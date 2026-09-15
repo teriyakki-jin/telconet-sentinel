@@ -8,6 +8,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, IPvAnyAddress
 from .convergence import (
     ConvergenceEvent,
     ConvergenceEventKind,
+    ConvergenceRepository,
     ConvergenceRun,
     ConvergenceStore,
     render_live_metrics,
@@ -126,7 +127,7 @@ def create_app(
     topology: Topology,
     experiment_evidence: dict[str, Any] | None = None,
     repeated_experiment_evidence: dict[str, Any] | None = None,
-    convergence_store: ConvergenceStore | None = None,
+    convergence_store: ConvergenceRepository | None = None,
 ) -> FastAPI:
     if experiment_evidence is not None:
         validate_experiment_evidence(experiment_evidence)

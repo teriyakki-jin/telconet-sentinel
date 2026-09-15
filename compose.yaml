@@ -4,11 +4,14 @@ services:
     environment:
       TELCONET_INTENT: /app/lab/intent.yml
       TELCONET_REPEATED_EXPERIMENT: /app/evidence/bfd-repeated-trials.json
+      TELCONET_STATE_DB: /var/lib/telconet/convergence.sqlite3
     ports:
       - "127.0.0.1:8000:8000"
     read_only: true
     tmpfs:
       - /tmp
+    volumes:
+      - telconet-state:/var/lib/telconet
     security_opt:
       - no-new-privileges:true
     healthcheck:
@@ -37,6 +40,7 @@ services:
       - "127.0.0.1:9090:9090"
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/rules:/etc/prometheus/rules:ro
       - prometheus-data:/prometheus
     read_only: true
     security_opt:
@@ -69,5 +73,6 @@ services:
       - no-new-privileges:true
 
 volumes:
+  telconet-state:
   prometheus-data:
   grafana-data:

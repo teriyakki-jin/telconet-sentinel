@@ -10,6 +10,7 @@ flowchart LR
     EVENT --> API["FastAPI incident service"]
     CLAB --> COLLECTOR["host live collector · 100ms poll"]
     COLLECTOR -->|"typed convergence events"| API
+    API --> STORE[("SQLite · bounded recent runs")]
     INTENT["intent.yml"] --> GRAPH["in-memory topology graph"]
     GRAPH --> IMPACT["cost-aware impact analysis"]
     API --> IMPACT
@@ -21,6 +22,7 @@ flowchart LR
     RAW --> EVIDENCE["recalculated JSON evidence"]
     EVIDENCE --> METRICS["FastAPI /metrics"]
     METRICS --> PROM["Prometheus scrape · 1s"]
+    PROM --> RULES["simulation alert rules · 20s hold"]
     PROM --> GRAFANA["Grafana provisioned dashboard"]
 ```
 
@@ -34,6 +36,8 @@ flowchart LR
 - The host collector owns `docker exec`, reads FRR JSON and continuous ICMP, and sends only typed event fields to the API.
 - The API container does not mount the Docker socket.
 - Live event offsets use a monotonic clock and represent polling-based observation upper bounds.
+- The API writes only validated typed convergence fields to a local SQLite volume; no SQL or file path is accepted from an API request.
+- Alert rules are local simulation guardrails, not production SLOs, and no Alertmanager receiver is configured.
 
 ## Topology
 
@@ -60,4 +64,5 @@ All router links participate in OSPF area 0. Interface costs create explicit pri
 - Phase 1: OSPF cost-aware impact analysis, typed recovery state, scenario evidence.
 - Phase 2: completed BFD remote-failure comparison and Prometheus-compatible evidence metrics.
 - Phase 3: completed live BFD/OSPF/RIB/ICMP convergence timeline and containerlab E2E CI.
-- Phase 4: durable event storage, alerting, BGP/MPLS L3VPN, and streaming telemetry.
+- Phase 4a: completed bounded SQLite event persistence and promtool-tested local alert evaluation.
+- Phase 4b: Alertmanager delivery, BGP/MPLS L3VPN, distributed event storage, and streaming telemetry.

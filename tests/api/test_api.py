@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from telconet_sentinel.api import create_app
-from telconet_sentinel.convergence import ConvergenceStore
+from telconet_sentinel.convergence import ConvergenceStore, SQLiteConvergenceStore
 from telconet_sentinel.topology import Topology
 
 
@@ -343,3 +344,40 @@ def test_rejects_invalid_or_duplicate_live_events(redundant_topology: Topology) 
     assert first.status_code == 201
     assert duplicate.status_code == 409
     assert missing.status_code == 404
+
+
+def test_restores_live_run_after_api_restart(
+    redundant_topology: Topology,
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "convergence.sqlite3"
+    first_client = TestClient(
+        create_app(
+            redundant_topology,
+            convergence_store=SQLiteConvergenceStore(database),
+        )
+    )
+    created = first_client.post(
+        "/api/convergence-runs",
+        json={
+            "profile": "bfd_100x3",
+            "source": "access1",
+            "target": "10.20.0.10",
+        },
+    ).json()
+    first_client.post(
+        f"/api/convergence-runs/{created['id']}/events",
+        json={"event": "blackhole_injected", "offset_ms": 0},
+    )
+
+    restarted_client = TestClient(
+        create_app(
+            redundant_topology,
+            convergence_store=SQLiteConvergenceStore(database),
+        )
+    )
+    restored = restarted_client.get("/api/convergence-runs/latest")
+
+    assert restored.status_code == 200
+    assert restored.json()["id"] == created["id"]
+    assert restored.json()["events"][0]["event"] == "blackhole_injected"

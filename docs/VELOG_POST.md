@@ -302,7 +302,8 @@ API는 raw shell command를 받거나 Docker socket을 mount하지 않는다. �
 4. 측정 오류와 protocol state 경쟁을 원시 로그로 진단한다.
 5. 단발 결과를 반복 실험과 백분위수로 검증한다.
 6. 결과를 evidence, metrics, dashboard, test로 연결한다.
-7. 실험의 범위와 한계를 명확하게 밝힌다.
+7. 최근 수렴 event를 재시작 후에도 조회하고 이상 상태를 alert rule로 판정한다.
+8. 실험의 범위와 한계를 명확하게 밝힌다.
 
 즉, 라우팅 설정뿐 아니라 **장애를 실험하고 수치로 검증하며 운영 가능한 근거로 만드는 역량**을 보여주는 것이 목표였다.
 
@@ -317,8 +318,10 @@ API는 raw shell command를 받거나 Docker socket을 mount하지 않는다. �
 - 실장비와 vendor interoperability는 검증하지 않았다.
 - OSPF authentication과 장기 부하 실험은 포함하지 않았다.
 - 현재 탐지 시간은 100ms ICMP probe로 확인한 data-plane 상한값이다.
+- SQLite는 최근 20개 run만 보관하며 장기·분산 event store가 아니다.
+- Prometheus가 로컬 alert를 평가하지만 Alertmanager와 on-call 알림은 연결하지 않았다.
 
-다음 단계는 아래 control-plane 이벤트를 하나의 타임라인으로 수집하는 것이다.
+초기 글에서 다음 단계로 두었던 control-plane 타임라인은 이후 구현했다.
 
 ```text
 blackhole 주입
@@ -328,7 +331,9 @@ blackhole 주입
 → 첫 ICMP 복구
 ```
 
-FRR syslog와 neighbor metric exporter를 연결하면 “경로가 언제 복구됐는가”뿐 아니라 “protocol 내부에서 어떤 상태 변화가 어떤 순서로 일어났는가”까지 설명할 수 있을 것이다.
+호스트 collector의 monotonic timestamp로 위 순서를 기록하고, 최근 20개 run은 SQLite volume에 보존한다. Prometheus에는 API scrape 실패, 미완료 수렴, data-plane 미복구가 20초 지속될 때 firing하는 simulation alert를 추가했으며 규칙은 CI의 `promtool` 테스트로 검증한다. 이 값과 alert 기준은 상용망 SLO가 아니라 해당 로컬 랩의 관측·운영 가드레일이다.
+
+이후 단계는 multi-area 또는 BGP/MPLS L3VPN 확장, 장기 event store, Alertmanager 알림 전달이다.
 
 ---
 

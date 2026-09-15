@@ -1,0 +1,38 @@
+groups:
+  - name: telconet-convergence
+    rules:
+      - alert: TelcoNetApiScrapeMissing
+        expr: up{job="telconet"} == 0
+        for: 20s
+        labels:
+          severity: critical
+          scope: simulation
+        annotations:
+          summary: TelcoNet Sentinel metrics endpoint is unavailable
+          description: >-
+            The local simulation API has not been scraped for 20 seconds.
+            This lab guardrail is not a production SLO.
+
+      - alert: TelcoNetConvergenceStalled
+        expr: telconet_live_run_complete == 0
+        for: 20s
+        labels:
+          severity: warning
+          scope: simulation
+        annotations:
+          summary: Live convergence run did not complete
+          description: >-
+            A local convergence run has remained incomplete for 20 seconds.
+            This lab guardrail is not a production SLO.
+
+      - alert: TelcoNetDataPlaneUnreachable
+        expr: telconet_live_data_plane_reachable == 0
+        for: 20s
+        labels:
+          severity: critical
+          scope: simulation
+        annotations:
+          summary: Simulated service data plane remains unreachable
+          description: >-
+            The latest local run has reported an unreachable data plane for
+            20 seconds. This lab guardrail is not a production SLO.

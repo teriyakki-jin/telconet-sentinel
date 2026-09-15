@@ -23,3 +23,15 @@ jobs:
       - run: uv run ruff check .
       - run: uv run mypy src
       - run: bash -n scenarios/*.sh
+      - name: Validate Prometheus configuration and rules
+        run: |
+          docker run --rm --entrypoint /bin/promtool \
+            -v "${PWD}/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro" \
+            -v "${PWD}/observability/prometheus/rules:/etc/prometheus/rules:ro" \
+            prom/prometheus:v3.14.0 \
+            check config /etc/prometheus/prometheus.yml
+          docker run --rm --entrypoint /bin/promtool \
+            -v "${PWD}/observability/prometheus/rules:/etc/prometheus/rules:ro" \
+            -v "${PWD}/observability/prometheus/tests:/etc/prometheus/tests:ro" \
+            prom/prometheus:v3.14.0 \
+            test rules /etc/prometheus/tests/convergence.yml

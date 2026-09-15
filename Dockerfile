@@ -14,7 +14,8 @@ COPY lab/intent.yml ./lab/intent.yml
 COPY evidence/bfd-comparison.json ./evidence/bfd-comparison.json
 COPY evidence/bfd-repeated-trials.json ./evidence/bfd-repeated-trials.json
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir . \
+    && install -d -o 65532 -g 65532 /var/lib/telconet
 
 USER 65532:65532
 
