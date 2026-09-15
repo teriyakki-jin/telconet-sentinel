@@ -26,6 +26,9 @@ def test_live_dashboard_exposes_each_convergence_stage() -> None:
     assert "telconet_live_ospf_neighbor_full" in queries
     assert "telconet_live_route_metric" in queries
     assert "telconet_live_data_plane_reachable" in queries
+    assert 'sum(ALERTS{alertstate="firing",alertname=~"TelcoNet.*"}) or vector(0)' in (
+        queries
+    )
 
 
 def test_prometheus_scrapes_live_state_each_second() -> None:

@@ -13,6 +13,11 @@ def test_compose_declares_local_hardened_observability_services() -> None:
     assert services["api"]["environment"]["TELCONET_REPEATED_EXPERIMENT"] == (
         "/app/evidence/bfd-repeated-trials.json"
     )
+    assert services["api"]["environment"]["TELCONET_STATE_DB"] == (
+        "/var/lib/telconet/convergence.sqlite3"
+    )
+    assert "telconet-state:/var/lib/telconet" in services["api"]["volumes"]
+    assert "telconet-state" in compose["volumes"]
     assert services["prometheus"]["image"] == "prom/prometheus:v3.14.0"
     assert services["grafana"]["image"] == "grafana/grafana:13.1.0"
     assert services["prometheus"]["ports"] == ["127.0.0.1:9090:9090"]
@@ -39,6 +44,7 @@ def test_compose_declares_local_hardened_observability_services() -> None:
         dockerfile
     )
     assert "COPY evidence/bfd-repeated-trials.json" in dockerfile
+    assert "install -d -o 65532 -g 65532 /var/lib/telconet" in dockerfile
 
 
 def test_prometheus_scrapes_the_api_metrics_endpoint() -> None:
@@ -50,6 +56,62 @@ def test_prometheus_scrapes_the_api_metrics_endpoint() -> None:
     assert job["metrics_path"] == "/metrics"
     assert job["scrape_interval"] == "1s"
     assert job["static_configs"] == [{"targets": ["api:8000"]}]
+
+
+def test_prometheus_loads_lab_scoped_convergence_alert_rules() -> None:
+    config = yaml.safe_load(
+        (ROOT / "observability" / "prometheus.yml").read_text(encoding="utf-8")
+    )
+    rules = yaml.safe_load(
+        (
+            ROOT / "observability" / "prometheus" / "rules" / "convergence.yml"
+        ).read_text(encoding="utf-8")
+    )
+    rule_tests = yaml.safe_load(
+        (
+            ROOT / "observability" / "prometheus" / "tests" / "convergence.yml"
+        ).read_text(encoding="utf-8")
+    )
+    compose = yaml.safe_load((ROOT / "compose.yaml").read_text(encoding="utf-8"))
+
+    assert config["rule_files"] == ["/etc/prometheus/rules/*.yml"]
+    assert (
+        "./observability/prometheus/rules:/etc/prometheus/rules:ro"
+        in compose["services"]["prometheus"]["volumes"]
+    )
+    alerts = {
+        rule["alert"]: rule
+        for group in rules["groups"]
+        for rule in group["rules"]
+    }
+    assert set(alerts) == {
+        "TelcoNetApiScrapeMissing",
+        "TelcoNetConvergenceStalled",
+        "TelcoNetDataPlaneUnreachable",
+    }
+    assert alerts["TelcoNetConvergenceStalled"]["expr"] == (
+        "telconet_live_run_complete == 0"
+    )
+    assert alerts["TelcoNetDataPlaneUnreachable"]["expr"] == (
+        "telconet_live_data_plane_reachable == 0"
+    )
+    for alert in alerts.values():
+        assert alert["for"] == "20s"
+        assert alert["labels"]["scope"] == "simulation"
+        assert "production SLO" in alert["annotations"]["description"]
+
+    workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "--entrypoint /bin/promtool" in workflow
+    assert "check config /etc/prometheus/prometheus.yml" in workflow
+    assert "test rules /etc/prometheus/tests/convergence.yml" in workflow
+    tested_alerts = {
+        case["alertname"]
+        for test in rule_tests["tests"]
+        for case in test["alert_rule_test"]
+    }
+    assert tested_alerts == set(alerts)
 
 
 def test_grafana_provisions_prometheus_and_bfd_dashboard() -> None:

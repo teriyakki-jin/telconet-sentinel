@@ -1,0 +1,56 @@
+rule_files:
+  - /etc/prometheus/rules/convergence.yml
+
+evaluation_interval: 1s
+
+tests:
+  - name: lab guardrails fire only after the 20 second hold
+    interval: 1s
+    input_series:
+      - series: 'up{job="telconet",instance="api:8000"}'
+        values: '0x25'
+      - series: 'telconet_live_run_complete{profile="bfd_100x3"}'
+        values: '0x25'
+      - series: 'telconet_live_data_plane_reachable{profile="bfd_100x3"}'
+        values: '0x25'
+    alert_rule_test:
+      - eval_time: 19s
+        alertname: TelcoNetApiScrapeMissing
+        exp_alerts: []
+      - eval_time: 21s
+        alertname: TelcoNetApiScrapeMissing
+        exp_alerts:
+          - exp_labels:
+              instance: api:8000
+              job: telconet
+              severity: critical
+              scope: simulation
+            exp_annotations:
+              summary: TelcoNet Sentinel metrics endpoint is unavailable
+              description: >-
+                The local simulation API has not been scraped for 20 seconds.
+                This lab guardrail is not a production SLO.
+      - eval_time: 21s
+        alertname: TelcoNetConvergenceStalled
+        exp_alerts:
+          - exp_labels:
+              profile: bfd_100x3
+              severity: warning
+              scope: simulation
+            exp_annotations:
+              summary: Live convergence run did not complete
+              description: >-
+                A local convergence run has remained incomplete for 20 seconds.
+                This lab guardrail is not a production SLO.
+      - eval_time: 21s
+        alertname: TelcoNetDataPlaneUnreachable
+        exp_alerts:
+          - exp_labels:
+              profile: bfd_100x3
+              severity: critical
+              scope: simulation
+            exp_annotations:
+              summary: Simulated service data plane remains unreachable
+              description: >-
+                The latest local run has reported an unreachable data plane for
+                20 seconds. This lab guardrail is not a production SLO.
