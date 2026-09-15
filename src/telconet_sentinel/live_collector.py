@@ -116,7 +116,7 @@ class PingRecoveryTracker:
 class LiveSample:
     bfd_up: bool
     ospf_full: bool
-    route_metric: int
+    route_metric: int | None
     icmp_sequence: int | None = None
 
 
@@ -235,10 +235,15 @@ class DockerFrrProbe:
         bfd = self._vtysh("show bfd peers json")
         ospf = self._vtysh("show ip ospf neighbor json")
         route = self._vtysh(f"show ip route {self._route_prefix} json")
+        try:
+            route_metric = parse_route_metric(route)
+        except ValueError:
+            _load_json(route)
+            route_metric = None
         return LiveSample(
             bfd_up=parse_bfd_peer_up(bfd, self._peer),
             ospf_full=parse_ospf_neighbor_full(ospf, self._peer),
-            route_metric=parse_route_metric(route),
+            route_metric=route_metric,
             icmp_sequence=icmp_sequence,
         )
 
