@@ -177,3 +177,24 @@ def test_grafana_provisions_repeated_trial_distribution_dashboard() -> None:
     assert 'telconet_detection_summary_seconds{stat="p95"}' in queries
     assert 'telconet_detection_summary_seconds{stat="max"}' in queries
     assert "telconet_trial_detection_seconds" in queries
+
+
+def test_grafana_provisions_n_minus_one_resilience_dashboard() -> None:
+    dashboard = json.loads(
+        (
+            ROOT / "observability" / "grafana" / "dashboards" / "n1-resilience.json"
+        ).read_text(encoding="utf-8")
+    )
+
+    assert dashboard["uid"] == "telconet-n1-resilience"
+    assert dashboard["title"] == "TelcoNet Sentinel · N-1 Link Resilience"
+    queries = {
+        target["expr"]
+        for panel in dashboard["panels"]
+        for target in panel.get("targets", [])
+    }
+    assert "telconet_n1_design_pass" in queries
+    assert 'telconet_n1_scenarios_total{impact="outage"}' in queries
+    assert 'telconet_n1_scenarios_total{impact="degraded"}' in queries
+    assert 'telconet_n1_scenarios_total{impact="redundancy_reduced"}' in queries
+    assert "telconet_n1_link_impact" in queries

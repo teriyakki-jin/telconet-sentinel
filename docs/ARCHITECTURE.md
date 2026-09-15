@@ -13,6 +13,8 @@ flowchart LR
     API --> STORE[("SQLite · bounded recent runs")]
     INTENT["intent.yml"] --> GRAPH["in-memory topology graph"]
     GRAPH --> IMPACT["cost-aware impact analysis"]
+    GRAPH --> N1["all single-link exclusions"]
+    N1 --> API
     API --> IMPACT
     IMPACT --> INCIDENT["incident + impact + evidence"]
     INCIDENT --> APPROVAL["typed state transition"]
@@ -66,3 +68,5 @@ All router links participate in OSPF area 0. Interface costs create explicit pri
 - Phase 3: completed live BFD/OSPF/RIB/ICMP convergence timeline and containerlab E2E CI.
 - Phase 4a: completed bounded SQLite event persistence and promtool-tested local alert evaluation.
 - Phase 4b: Alertmanager delivery, BGP/MPLS L3VPN, distributed event storage, and streaming telemetry.
+- Phase 5a: completed deterministic N-1 single-link audit and Grafana scenario matrix.
+- Phase 5b: service dual-homing design, node-failure audit, and failure-domain modeling.

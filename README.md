@@ -30,8 +30,8 @@ FRRouting과 containerlab으로 Access–Aggregation–Core 전송망을 구성�
 | 라우팅 | Single Area 0 OSPF, 명시적 cost, `/31` point-to-point transit, `/32` router-id |
 | 장애 | 링크 carrier는 유지하고 `agg1:eth1` ingress 패킷을 100% 차단하는 원격 블랙홀 |
 | 비교 | OSPF hello/dead 1초/4초 vs BFD minimum TX/RX 100ms, multiplier 3 |
-| 구현 범위 | 망 설계, 실험 자동화, 실시간 수렴 수집기, SQLite event store, 영향 분석 API, Prometheus alert, Grafana, 테스트와 CI |
-| 검증 | 98개 테스트, branch coverage 85.27%, 실제 containerlab E2E, Ruff, mypy, promtool, CodeQL, OpenSSF Scorecard |
+| 구현 범위 | 망 설계, N-1 전수 분석, 실험 자동화, 실시간 수렴 수집기, SQLite event store, Prometheus alert, Grafana, 테스트와 CI |
+| 검증 | 104개 테스트, branch coverage 86.10%, 실제 containerlab E2E, Ruff, mypy, promtool, CodeQL, OpenSSF Scorecard |
 
 ## 문제 정의
 
@@ -53,6 +53,8 @@ flowchart LR
     COLLECTOR -->|"typed events only"| API
     RAW --> JSON["recalculated JSON evidence"]
     JSON --> API["FastAPI · impact analysis · /metrics"]
+    INTENT["intent.yml"] --> AUDIT["N-1 single-link audit"]
+    AUDIT --> API
     API --> DB[("SQLite · recent 20 runs")]
     API --> PROM["Prometheus"]
     PROM --> ALERT["simulation alert rules"]
@@ -111,6 +113,27 @@ OSPF cost  : 100 + 10 + 20 + 10 = 140
 | BFD를 탐지 계층으로만 사용 | OSPF 경로 정책을 유지한 상태에서 장애 탐지 성능만 비교 |
 
 전체 주소 계획, router-id, 장애별 예상 경로와 단일 장애점은 [OSPF 설계 문서](docs/OSPF_DESIGN.md)에 정리했습니다.
+
+## N-1 단일 링크 장애 전수 분석
+
+한 개의 예시 장애만 설명하는 데서 그치지 않고 `intent.yml`의 10개 링크를 하나씩 제외해 모든 Access 노드의 서비스 도달성과 최단 경로 cost 변화를 계산합니다. 이는 실측 가용성 수치가 아니라 현재 OSPF 설계에 대한 결정론적 graph 분석입니다.
+
+| 판정 | 시나리오 수 | 의미 |
+|---|---:|---|
+| `OUTAGE` | **1** | 서비스 경로 소실 |
+| `DEGRADED` | 5 | 우회 가능하지만 최단 경로 cost 증가 |
+| `REDUNDANCY_REDUCED` | 4 | 활성 최단 경로는 유지되지만 예비 링크 감소 |
+| 합계 | 10 | 모든 링크를 한 번씩 제외 |
+
+현재 설계는 `core1--service-host` 단절 시 access1과 access2가 모두 서비스망에 도달하지 못하므로 **single-link N-1을 통과하지 않습니다.** 이 결과를 숨기지 않고 service-facing 이중화가 다음 설계 과제라는 근거로 사용합니다. API 응답은 시나리오별 실패 링크, 양 끝 노드, 영향 등급, Access 노드와 prefix를 반환합니다.
+
+```bash
+curl http://127.0.0.1:8000/api/resilience/single-link-failures
+```
+
+[N-1 설계 감사 문서](docs/N1_DESIGN_AUDIT.md)와 [N-1 Resilience Dashboard](http://127.0.0.1:3000/d/telconet-n1-resilience)에서 전체 매트릭스를 확인할 수 있습니다.
+
+![N-1 단일 링크 장애 전수 분석 Grafana 대시보드](docs/assets/grafana-n1-resilience.png)
 
 ## 반복 실험 설계
 
@@ -243,6 +266,7 @@ docker compose up -d --build
 | Grafana | `http://127.0.0.1:3000` |
 | 반복 실험 dashboard | `http://127.0.0.1:3000/d/telconet-bfd-repeated-trials` |
 | Live convergence dashboard | `http://127.0.0.1:3000/d/telconet-live-convergence` |
+| N-1 resilience dashboard | `http://127.0.0.1:3000/d/telconet-n1-resilience` |
 | Prometheus | `http://127.0.0.1:9090` |
 | Prometheus alerts | `http://127.0.0.1:9090/alerts` |
 | Raw metrics | `http://127.0.0.1:8000/metrics` |
@@ -290,17 +314,17 @@ Live E2E는 랩 배포, BFD 활성화, baseline 검증, blackhole 주입, 다섯
 
 | 계층 | 검증 내용 |
 |---|---|
-| Unit | OSPF/BFD JSON 파싱, live transition, SQLite 보존·pruning·atomicity, p50/p95/max, topology·impact·recovery 로직 |
-| API | typed request, 재시작 후 수렴 event 조회, 영향 분석, 중복 제거, 승인 상태 전이, Prometheus metrics |
-| Contract | intent–containerlab 링크 일치, FRR image/capability, OSPF 설정, dashboard·alert rule·E2E workflow |
+| Unit | OSPF/BFD JSON 파싱, N-1 전수 분석, live transition, SQLite 보존·pruning·atomicity, p50/p95/max, topology·recovery 로직 |
+| API | N-1 scenario 응답, typed request, 재시작 후 수렴 event 조회, 중복 제거, 승인 상태 전이, Prometheus metrics |
+| Contract | intent–containerlab 링크 일치, FRR image/capability, OSPF 설정, N-1·live dashboard, alert rule·E2E workflow |
 | Integration | 원시 로그에서 evidence 재계산, configuration fingerprint 일치 |
 | Lab E2E | 실제 FRR 6대에서 baseline 30, blackhole, BFD/OSPF down, RIB 140, ICMP 복구 검증 |
 | Static | Ruff, strict mypy, Bash syntax |
 | Security | CodeQL `security-extended` query로 Python 취약점·오류 분석 |
 | Supply chain | OpenSSF Scorecard, SHA-pinned Actions·base image, Dependabot으로 저장소 관행 평가 |
-| CI | 98개 테스트·branch coverage 80% gate, promtool rule test와 실제 containerlab E2E를 독립 workflow로 실행 |
+| CI | 104개 테스트·branch coverage 80% gate, promtool rule test와 실제 containerlab E2E를 독립 workflow로 실행 |
 
-현재 로컬 검증 결과는 **98 tests passed, branch coverage 85.27%**입니다. CodeQL과
+현재 로컬 검증 결과는 **104 tests passed, branch coverage 86.10%**입니다. CodeQL과
 OpenSSF Scorecard 결과는 README 상단의 배지에서 최신 실행 상태와 공개 평가를 확인할 수 있습니다.
 보안 문제는 공개 issue 대신 [Security Policy](SECURITY.md)의 비공개 신고 절차를 사용합니다.
 
@@ -341,6 +365,7 @@ telconet-sentinel/
 상세 문서:
 
 - [OSPF 설계](docs/OSPF_DESIGN.md)
+- [N-1 단일 링크 설계 감사](docs/N1_DESIGN_AUDIT.md)
 - [시스템 아키텍처와 신뢰 경계](docs/ARCHITECTURE.md)
 - [링크 장애 실험 Runbook](docs/RUNBOOK_LINK_FAILURE.md)
 - [수렴 상태와 알림 Runbook](docs/RUNBOOK_ALERTS.md)

@@ -18,7 +18,13 @@ from .metrics import (
     validate_experiment_evidence,
     validate_repeated_experiment_evidence,
 )
-from .models import Incident, NetworkEvent
+from .models import Incident, NetworkEvent, ServiceImpact
+from .resilience import (
+    LinkFailureScenario,
+    ResilienceAudit,
+    audit_single_link_failures,
+    render_resilience_metrics,
+)
 from .service import IncidentService
 from .topology import Topology
 
@@ -85,6 +91,28 @@ class ConvergenceRunResponse(BaseModel):
     events: list[ConvergenceEventResponse]
 
 
+class LinkFailureScenarioResponse(BaseModel):
+    link_id: str
+    endpoints: list[str]
+    service_impact: str
+    affected_nodes: list[str]
+    affected_prefixes: list[str]
+
+
+class ResilienceSummaryResponse(BaseModel):
+    total: int
+    outage: int
+    degraded: int
+    redundancy_reduced: int
+
+
+class ResilienceAuditResponse(BaseModel):
+    scope: Literal["single_link_failure"]
+    passes_n_minus_one: bool
+    summary: ResilienceSummaryResponse
+    scenarios: list[LinkFailureScenarioResponse]
+
+
 def _incident_response(incident: Incident) -> IncidentResponse:
     return IncidentResponse(
         id=incident.id,
@@ -123,6 +151,30 @@ def _convergence_response(run: ConvergenceRun) -> ConvergenceRunResponse:
     )
 
 
+def _scenario_response(scenario: LinkFailureScenario) -> LinkFailureScenarioResponse:
+    return LinkFailureScenarioResponse(
+        link_id=scenario.link_id,
+        endpoints=list(scenario.endpoints),
+        service_impact=scenario.service_impact.value,
+        affected_nodes=list(scenario.affected_nodes),
+        affected_prefixes=list(scenario.affected_prefixes),
+    )
+
+
+def _resilience_response(audit: ResilienceAudit) -> ResilienceAuditResponse:
+    return ResilienceAuditResponse(
+        scope="single_link_failure",
+        passes_n_minus_one=audit.passes_n_minus_one,
+        summary=ResilienceSummaryResponse(
+            total=audit.total_scenarios,
+            outage=audit.count(ServiceImpact.OUTAGE),
+            degraded=audit.count(ServiceImpact.DEGRADED),
+            redundancy_reduced=audit.count(ServiceImpact.REDUNDANCY_REDUCED),
+        ),
+        scenarios=[_scenario_response(scenario) for scenario in audit.scenarios],
+    )
+
+
 def create_app(
     topology: Topology,
     experiment_evidence: dict[str, Any] | None = None,
@@ -140,6 +192,7 @@ def create_app(
     )
     service = IncidentService(topology)
     live_store = convergence_store or ConvergenceStore()
+    resilience_audit = audit_single_link_failures(topology)
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -156,6 +209,7 @@ def create_app(
             experiment_evidence, repeated_experiment_evidence
         )
         rendered += render_live_metrics(live_store.latest())
+        rendered += render_resilience_metrics(resilience_audit)
         return PlainTextResponse(rendered, media_type="text/plain; version=0.0.4")
 
     @app.get("/api/topology")
@@ -179,6 +233,13 @@ def create_app(
                 for link in topology.links
             ],
         }
+
+    @app.get(
+        "/api/resilience/single-link-failures",
+        response_model=ResilienceAuditResponse,
+    )
+    def get_single_link_failure_audit() -> ResilienceAuditResponse:
+        return _resilience_response(resilience_audit)
 
     @app.post(
         "/api/convergence-runs",
