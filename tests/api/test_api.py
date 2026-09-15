@@ -20,6 +20,32 @@ def test_health_and_topology(redundant_topology: Topology) -> None:
     assert {link["id"]: link["cost"] for link in topology.json()["links"]}["access1--agg1"] == 10
 
 
+def test_exposes_deterministic_single_link_failure_audit(
+    redundant_topology: Topology,
+) -> None:
+    client = TestClient(create_app(redundant_topology))
+
+    response = client.get("/api/resilience/single-link-failures")
+
+    assert response.status_code == 200
+    report = response.json()
+    assert report["scope"] == "single_link_failure"
+    assert report["passes_n_minus_one"] is False
+    assert report["summary"] == {
+        "total": 10,
+        "outage": 1,
+        "degraded": 5,
+        "redundancy_reduced": 4,
+    }
+    outage = next(
+        scenario
+        for scenario in report["scenarios"]
+        if scenario["service_impact"] == "outage"
+    )
+    assert outage["link_id"] == "core1--service-host"
+    assert outage["affected_prefixes"] == ["10.10.1.0/24", "10.10.2.0/24"]
+
+
 def test_metrics_returns_service_unavailable_without_evidence(
     redundant_topology: Topology,
 ) -> None:
@@ -53,6 +79,8 @@ def test_exposes_latest_experiment_as_prometheus_metrics(redundant_topology: Top
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/plain")
     assert 'telconet_detection_seconds{profile="bfd_100x3"} 0.3' in response.text
+    assert "telconet_n1_design_pass 0" in response.text
+    assert 'telconet_n1_scenarios_total{impact="outage"} 1' in response.text
 
 
 def test_exposes_repeated_trial_metrics_when_evidence_is_available(

@@ -155,6 +155,45 @@ def test_docker_probe_collects_one_typed_snapshot(monkeypatch: pytest.MonkeyPatc
     assert sample == LiveSample(bfd_up=True, ospf_full=True, route_metric=30)
 
 
+def test_docker_probe_represents_a_transient_missing_route(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outputs = {
+        "show bfd peers json": '{"10.0.1.1":[{"status":"down"}]}',
+        "show ip ospf neighbor json": "{}",
+        "show ip route 10.20.0.0/24 json": "{}",
+    }
+
+    def fake_run(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(command, 0, stdout=outputs[command[-1]], stderr="")
+
+    monkeypatch.setattr(collector.subprocess, "run", fake_run)
+
+    sample = DockerFrrProbe(
+        "clab-telconet-sentinel-access1",
+        "10.0.1.1",
+        "10.20.0.0/24",
+    ).sample()
+
+    assert sample == LiveSample(bfd_up=False, ospf_full=False, route_metric=None)
+
+
+def test_detector_waits_through_a_transient_missing_route() -> None:
+    detector = LiveTransitionDetector()
+
+    control_plane = detector.observe(LiveSample(False, False, None), 320)
+    recovered = detector.observe(LiveSample(False, False, 140, 8), 498)
+
+    assert [transition.event for transition in control_plane] == [
+        "bfd_down",
+        "ospf_neighbor_down",
+    ]
+    assert [transition.event for transition in recovered] == [
+        "route_failover",
+        "data_plane_recovered",
+    ]
+
+
 def test_live_api_client_sends_typed_json(monkeypatch: pytest.MonkeyPatch) -> None:
     requests: list[object] = []
 

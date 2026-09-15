@@ -1,0 +1,153 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Live Convergence Timeline",
+      "type": "link",
+      "url": "/d/telconet-live-convergence"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [
+            {
+              "options": {
+                "0": {"color": "red", "text": "GAP FOUND"},
+                "1": {"color": "green", "text": "N-1 PASS"}
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "telconet_n1_design_pass",
+          "instant": true,
+          "legendFormat": "design",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Single-link N-1 status",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "decimals": 0,
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 0},
+      "id": 2,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_n1_scenarios_total{impact=\"outage\"}", "instant": true, "legendFormat": "outage", "range": false, "refId": "A"}],
+      "title": "OUTAGE scenarios",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "orange", "value": null}]}}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 0},
+      "id": 3,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_n1_scenarios_total{impact=\"degraded\"}", "instant": true, "legendFormat": "degraded", "range": false, "refId": "A"}],
+      "title": "DEGRADED scenarios",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "yellow", "value": null}]}}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 0},
+      "id": 4,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_n1_scenarios_total{impact=\"redundancy_reduced\"}", "instant": true, "legendFormat": "redundancy reduced", "range": false, "refId": "A"}],
+      "title": "REDUNDANCY REDUCED",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0}, "overrides": []},
+      "gridPos": {"h": 12, "w": 15, "x": 0, "y": 5},
+      "id": 5,
+      "options": {"cellHeight": "sm", "footer": {"countRows": false, "enablePagination": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true},
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "telconet_n1_link_impact",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{link_id}} · {{impact}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "All single-link failure classifications",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true, "Value": true, "__name__": true, "instance": true, "job": true},
+            "indexByName": {"link_id": 0, "impact": 1},
+            "renameByName": {"impact": "Impact", "link_id": "Failed link"}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "gridPos": {"h": 12, "w": 9, "x": 15, "y": 5},
+      "id": 6,
+      "options": {
+        "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
+        "content": "### Design finding\n\nThe current topology does **not** pass single-link N-1 because `core1--service-host` is the only service-facing link. Its loss makes both access prefixes unreachable.\n\nThe other nine failures retain reachability: five increase the shortest-path cost and four remove spare capacity without changing the active shortest path.\n\nThis dashboard is deterministic analysis of `lab/intent.yml`, not measured production availability.",
+        "mode": "markdown"
+      },
+      "title": "Interpretation and scope",
+      "type": "text"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 41,
+  "tags": ["telconet", "ospf", "n-1", "resilience", "design"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "TelcoNet Sentinel · N-1 Link Resilience",
+  "uid": "telconet-n1-resilience",
+  "version": 2
+}
