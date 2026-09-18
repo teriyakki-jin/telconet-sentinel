@@ -71,6 +71,9 @@ jobs:
       - name: Run live convergence E2E
         run: bash scenarios/live_convergence_e2e.sh
 
+      - name: Run service dual-homing E2E
+        run: bash scenarios/dual_homing_e2e.sh
+
       - name: Upload lab evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -78,5 +81,6 @@ jobs:
           name: live-convergence-evidence
           path: |
             artifacts/live-convergence
+            artifacts/dual-homing
           if-no-files-found: warn
           retention-days: 14

@@ -3,6 +3,7 @@ services:
     build: .
     environment:
       TELCONET_INTENT: /app/lab/intent.yml
+      TELCONET_CANDIDATE_INTENT: /app/lab/intent-dual-homed.yml
       TELCONET_REPEATED_EXPERIMENT: /app/evidence/bfd-repeated-trials.json
       TELCONET_STATE_DB: /var/lib/telconet/convergence.sqlite3
     ports:

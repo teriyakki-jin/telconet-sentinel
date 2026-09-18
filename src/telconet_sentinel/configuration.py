@@ -6,13 +6,19 @@ from pathlib import Path
 
 
 def configuration_fingerprint(project_root: Path) -> str:
+    frr_root = project_root / "lab" / "frr"
     files = [
         project_root / "lab" / "telconet.clab.yml",
         project_root / "lab" / "intent.yml",
     ]
     files.extend(
         sorted(
-            (path for path in (project_root / "lab" / "frr").rglob("*") if path.is_file()),
+            [
+                frr_root / "daemons",
+                *(frr_root / router / "frr.conf" for router in (
+                    "access1", "access2", "agg1", "agg2", "core1", "core2"
+                )),
+            ],
             key=lambda path: path.as_posix(),
         )
     )

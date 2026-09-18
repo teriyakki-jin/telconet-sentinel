@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from telconet_sentinel.api import create_app
+from telconet_sentinel.config import load_topology
 from telconet_sentinel.convergence import ConvergenceStore, SQLiteConvergenceStore
 from telconet_sentinel.topology import Topology
 
@@ -44,6 +45,29 @@ def test_exposes_deterministic_single_link_failure_audit(
     )
     assert outage["link_id"] == "core1--service-host"
     assert outage["affected_prefixes"] == ["10.10.1.0/24", "10.10.2.0/24"]
+
+
+def test_exposes_candidate_dual_homing_audit_and_metrics(
+    redundant_topology: Topology,
+) -> None:
+    candidate = load_topology(Path(__file__).parents[2] / "lab" / "intent-dual-homed.yml")
+    client = TestClient(
+        create_app(
+            redundant_topology,
+            experiment_evidence=_experiment_evidence(),
+            candidate_topology=candidate,
+        )
+    )
+
+    response = client.get("/api/resilience/single-link-failures/candidate")
+    metrics = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert response.json()["summary"]["total"] == 11
+    assert response.json()["summary"]["outage"] == 0
+    assert response.json()["passes_n_minus_one"] is True
+    assert "telconet_n1_candidate_design_pass 1" in metrics.text
+    assert "telconet_n1_candidate_outages_total 0" in metrics.text
 
 
 def test_metrics_returns_service_unavailable_without_evidence(
