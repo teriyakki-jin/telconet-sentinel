@@ -16,7 +16,7 @@ nodes:
     role: core
   service-host:
     role: service
-    prefixes: [10.20.0.0/24]
+    prefixes: [10.20.0.10/32]
 links:
   - id: access1--agg1
     endpoints: [access1, agg1]

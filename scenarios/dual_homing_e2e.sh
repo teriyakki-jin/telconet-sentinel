@@ -60,13 +60,18 @@ clab deploy --topo "${lab_file}" 2>&1 | tee "${artifact_dir}/deploy.log"
 wait_metric() {
   local expected="$1" file="$2"
   for _ in $(seq 1 60); do
-    if docker exec "${access1}" vtysh -c "show ip route 10.20.0.0/24 json" \
+    if docker exec "${access1}" vtysh -c "show ip route 10.20.0.10/32 json" \
       >"${file}" 2>"${file}.err" &&
       grep -Eq '"metric"[[:space:]]*:[[:space:]]*'"${expected}"'([,}])' "${file}"; then
       return 0
     fi
     sleep 1
   done
+  docker exec "${access1}" vtysh -c "show ip route json" \
+    >"${file}.full-rib.json" 2>&1 || true
+  docker exec "clab-telconet-dual-homed-service-host" \
+    vtysh -c "show ip ospf neighbor json" \
+    >"${file}.service-neighbors.json" 2>&1 || true
   echo "expected service route metric ${expected} was not observed" >&2
   return 1
 }

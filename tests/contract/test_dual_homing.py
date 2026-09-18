@@ -19,7 +19,7 @@ def test_dual_homed_intent_passes_every_single_link_failure() -> None:
     assert len(candidate.links) == 11
     assert candidate.link("core1--service-host").cost == 10
     assert candidate.link("core2--service-host").cost == 30
-    assert candidate.node("service-host").prefixes == ("10.20.0.0/24",)
+    assert candidate.node("service-host").prefixes == ("10.20.0.10/32",)
     assert candidate.shortest_distance("access1", {"service-host"}) == 30
     assert candidate.shortest_distance(
         "access1", {"service-host"}, excluded_link="access1--agg1"
@@ -56,7 +56,7 @@ def test_dual_homed_frr_service_prefix_and_transit_costs() -> None:
     assert "ip ospf cost 1" in core1
     assert "ip address 10.0.3.2/31" in core2
     assert "ip ospf cost 21" in core2
-    assert "ip address 10.20.0.10/24" in service
+    assert "ip address 10.20.0.10/32" in service
     assert "ip ospf cost 9" in service
     assert "passive-interface lo" in service
 
@@ -69,7 +69,7 @@ def test_dual_homing_e2e_injects_and_restores_service_link_failure() -> None:
     assert "intent-dual-homed.yml" in scenario
     assert "ip link set dev eth4 down" in scenario
     assert "ip link set dev eth4 up" in scenario
-    assert "show ip route 10.20.0.0/24 json" in scenario
+    assert "show ip route 10.20.0.10/32 json" in scenario
     assert "E2E_DUAL_HOMING" in scenario
     assert "trap cleanup EXIT" in scenario
     assert "bash scenarios/dual_homing_e2e.sh" in workflow
