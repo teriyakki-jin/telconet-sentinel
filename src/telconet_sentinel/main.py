@@ -10,6 +10,11 @@ from .metrics import load_experiment_evidence, load_repeated_experiment_evidence
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 INTENT_PATH = Path(os.environ.get("TELCONET_INTENT", PROJECT_ROOT / "lab" / "intent.yml"))
+CANDIDATE_INTENT_PATH = Path(
+    os.environ.get(
+        "TELCONET_CANDIDATE_INTENT", PROJECT_ROOT / "lab" / "intent-dual-homed.yml"
+    )
+)
 EXPERIMENT_PATH = Path(
     os.environ.get(
         "TELCONET_EXPERIMENT",
@@ -42,4 +47,9 @@ app = create_app(
     experiment_evidence,
     repeated_experiment_evidence,
     convergence_store,
+    candidate_topology=(
+        load_topology(CANDIDATE_INTENT_PATH)
+        if CANDIDATE_INTENT_PATH.is_file()
+        else None
+    ),
 )

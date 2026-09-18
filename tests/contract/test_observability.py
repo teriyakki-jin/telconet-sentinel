@@ -16,6 +16,12 @@ def test_compose_declares_local_hardened_observability_services() -> None:
     assert services["api"]["environment"]["TELCONET_STATE_DB"] == (
         "/var/lib/telconet/convergence.sqlite3"
     )
+    assert services["api"]["environment"]["TELCONET_CANDIDATE_INTENT"] == (
+        "/app/lab/intent-dual-homed.yml"
+    )
+    assert "COPY lab/intent-dual-homed.yml ./lab/intent-dual-homed.yml" in (
+        ROOT / "Dockerfile"
+    ).read_text(encoding="utf-8")
     assert "telconet-state:/var/lib/telconet" in services["api"]["volumes"]
     assert "telconet-state" in compose["volumes"]
     assert services["prometheus"]["image"] == "prom/prometheus:v3.14.0"
@@ -198,3 +204,5 @@ def test_grafana_provisions_n_minus_one_resilience_dashboard() -> None:
     assert 'telconet_n1_scenarios_total{impact="degraded"}' in queries
     assert 'telconet_n1_scenarios_total{impact="redundancy_reduced"}' in queries
     assert "telconet_n1_link_impact" in queries
+    assert "telconet_n1_candidate_design_pass" in queries
+    assert "telconet_n1_candidate_outages_total" in queries

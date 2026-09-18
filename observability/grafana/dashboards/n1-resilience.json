@@ -58,7 +58,7 @@
           "refId": "A"
         }
       ],
-      "title": "Single-link N-1 status",
+      "title": "Baseline · N-1 status",
       "type": "stat"
     },
     {
@@ -75,7 +75,7 @@
       "id": 2,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
       "targets": [{"editorMode": "code", "expr": "telconet_n1_scenarios_total{impact=\"outage\"}", "instant": true, "legendFormat": "outage", "range": false, "refId": "A"}],
-      "title": "OUTAGE scenarios",
+      "title": "Baseline · OUTAGE",
       "type": "stat"
     },
     {
@@ -85,7 +85,7 @@
       "id": 3,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
       "targets": [{"editorMode": "code", "expr": "telconet_n1_scenarios_total{impact=\"degraded\"}", "instant": true, "legendFormat": "degraded", "range": false, "refId": "A"}],
-      "title": "DEGRADED scenarios",
+      "title": "Baseline · DEGRADED",
       "type": "stat"
     },
     {
@@ -95,13 +95,51 @@
       "id": 4,
       "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
       "targets": [{"editorMode": "code", "expr": "telconet_n1_scenarios_total{impact=\"redundancy_reduced\"}", "instant": true, "legendFormat": "redundancy reduced", "range": false, "refId": "A"}],
-      "title": "REDUNDANCY REDUCED",
+      "title": "Baseline · Spare path lost",
       "type": "stat"
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [{"options": {"0": {"color": "red", "text": "GAP FOUND"}, "1": {"color": "green", "text": "N-1 PASS"}}, "type": "value"}],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 5},
+      "id": 7,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_n1_candidate_design_pass", "instant": true, "legendFormat": "candidate", "range": false, "refId": "A"}],
+      "title": "Candidate · N-1 status",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 5},
+      "id": 8,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_n1_candidate_outages_total", "instant": true, "legendFormat": "candidate outage", "range": false, "refId": "A"}],
+      "title": "Candidate · OUTAGE",
+      "type": "stat"
+    },
+    {
+      "gridPos": {"h": 5, "w": 12, "x": 12, "y": 5},
+      "id": 9,
+      "options": {
+        "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
+        "content": "### Baseline → candidate\n\n**Baseline:** 10 links · 1 OUTAGE.  \n**Candidate:** 11 links · 0 OUTAGE.  \n**Lab E2E:** route metric 30 → 70 → 30; both clients reached the service after failover.",
+        "mode": "markdown"
+      },
+      "title": "Design change and evidence",
+      "type": "text"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0}, "overrides": []},
-      "gridPos": {"h": 12, "w": 15, "x": 0, "y": 5},
+      "gridPos": {"h": 12, "w": 15, "x": 0, "y": 10},
       "id": 5,
       "options": {"cellHeight": "sm", "footer": {"countRows": false, "enablePagination": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true},
       "targets": [
@@ -115,7 +153,7 @@
           "refId": "A"
         }
       ],
-      "title": "All single-link failure classifications",
+      "title": "Baseline · all single-link failure classifications",
       "transformations": [
         {
           "id": "organize",
@@ -129,11 +167,11 @@
       "type": "table"
     },
     {
-      "gridPos": {"h": 12, "w": 9, "x": 15, "y": 5},
+      "gridPos": {"h": 12, "w": 9, "x": 15, "y": 10},
       "id": 6,
       "options": {
         "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
-        "content": "### Design finding\n\nThe current topology does **not** pass single-link N-1 because `core1--service-host` is the only service-facing link. Its loss makes both access prefixes unreachable.\n\nThe other nine failures retain reachability: five increase the shortest-path cost and four remove spare capacity without changing the active shortest path.\n\nThis dashboard is deterministic analysis of `lab/intent.yml`, not measured production availability.",
+        "content": "### Interpretation and scope\n\nThe baseline has a service-facing SPOF at `core1--service-host`. The candidate adds `core2--service-host` and passes all 11 deterministic single-link graph checks.\n\nThe table at left is the unchanged **historical baseline**. The candidate uses an OSPF-speaking FRR service endpoint in an isolated lab; it does not establish independent physical paths, capacity headroom, convergence SLA, or production availability. See `docs/N1_DESIGN_AUDIT.md` for scope and the E2E command.",
         "mode": "markdown"
       },
       "title": "Interpretation and scope",
@@ -149,5 +187,5 @@
   "timezone": "browser",
   "title": "TelcoNet Sentinel · N-1 Link Resilience",
   "uid": "telconet-n1-resilience",
-  "version": 2
+  "version": 3
 }

@@ -114,7 +114,7 @@ OSPF cost  : 100 + 10 + 20 + 10 = 140
 
 전체 주소 계획, router-id, 장애별 예상 경로와 단일 장애점은 [OSPF 설계 문서](docs/OSPF_DESIGN.md)에 정리했습니다.
 
-## N-1 단일 링크 장애 전수 분석
+## N-1 단일 링크 장애 전수 분석과 서비스 이중화
 
 한 개의 예시 장애만 설명하는 데서 그치지 않고 `intent.yml`의 10개 링크를 하나씩 제외해 모든 Access 노드의 서비스 도달성과 최단 경로 cost 변화를 계산합니다. 이는 실측 가용성 수치가 아니라 현재 OSPF 설계에 대한 결정론적 graph 분석입니다.
 
@@ -125,15 +125,19 @@ OSPF cost  : 100 + 10 + 20 + 10 = 140
 | `REDUNDANCY_REDUCED` | 4 | 활성 최단 경로는 유지되지만 예비 링크 감소 |
 | 합계 | 10 | 모든 링크를 한 번씩 제외 |
 
-현재 설계는 `core1--service-host` 단절 시 access1과 access2가 모두 서비스망에 도달하지 못하므로 **single-link N-1을 통과하지 않습니다.** 이 결과를 숨기지 않고 service-facing 이중화가 다음 설계 과제라는 근거로 사용합니다. API 응답은 시나리오별 실패 링크, 양 끝 노드, 영향 등급, Access 노드와 prefix를 반환합니다.
+기존 설계는 `core1--service-host` 단절 시 access1과 access2가 모두 서비스망에 도달하지 못하므로 **single-link N-1을 통과하지 않습니다.** 기존 실험 결과를 유지한 채 별도의 `intent-dual-homed.yml` 후보 설계를 만들고, `core2--service-host` 링크를 추가했습니다. 후보 설계는 11개 단일 링크 장애 시나리오에서 `OUTAGE`가 0개입니다. 이는 선언된 그래프와 cost에 대한 분석 결과이지, 실서비스 가용성 측정치는 아닙니다.
+
+후보 설계는 독립된 FRR containerlab에서 서비스 링크 장애도 검증했습니다. `core1--service-host` 링크를 내리면 access1의 서비스 경로 metric이 **30 → 70 → 30**(정상 → 우회 → 복구)으로 변했고, 장애 후 access1·access2 측 클라이언트에서 서비스 VIP `10.20.0.10/32`에 각각 ICMP가 도달했습니다. 이는 [CI E2E 실행과 원본 artifact](https://github.com/teriyakki-jin/telconet-sentinel/actions/runs/35316616585)에서 확인할 수 있습니다. 다만 장애 중 무손실이나 수렴시간 상한을 증명한 것은 아닙니다. 이 랩의 service-host는 OSPF를 구동하는 FRR 노드이며, 일반 서버의 이중 NIC 구성이나 물리적으로 분리된 전송 경로를 그대로 재현한 것은 아닙니다.
 
 ```bash
 curl http://127.0.0.1:8000/api/resilience/single-link-failures
+curl http://127.0.0.1:8000/api/resilience/single-link-failures/candidate
+bash scenarios/dual_homing_e2e.sh
 ```
 
-[N-1 설계 감사 문서](docs/N1_DESIGN_AUDIT.md)와 [N-1 Resilience Dashboard](http://127.0.0.1:3000/d/telconet-n1-resilience)에서 전체 매트릭스를 확인할 수 있습니다.
+[N-1 설계 감사 문서](docs/N1_DESIGN_AUDIT.md)와 [N-1 Resilience Dashboard](http://127.0.0.1:3000/d/telconet-n1-resilience)에서 기존 GAP와 후보 PASS를 비교할 수 있습니다. 대시보드의 링크별 분류 표는 기존 설계 기준입니다.
 
-![N-1 단일 링크 장애 전수 분석 Grafana 대시보드](docs/assets/grafana-n1-resilience.png)
+![기존 설계 GAP와 서비스 이중화 후보 PASS를 비교한 Grafana 대시보드](docs/assets/grafana-n1-resilience.png)
 
 ## 반복 실험 설계
 

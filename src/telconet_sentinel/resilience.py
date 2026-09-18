@@ -96,3 +96,19 @@ def render_resilience_metrics(audit: ResilienceAudit) -> str:
             f'{{impact="{scenario.service_impact.value}",link_id="{link_id}"}} 1'
         )
     return "\n".join(lines) + "\n"
+
+
+def render_candidate_resilience_metrics(audit: ResilienceAudit) -> str:
+    return "\n".join(
+        [
+            "# HELP telconet_n1_candidate_design_pass Whether every modeled "
+            "single-link failure preserves candidate service reachability.",
+            "# TYPE telconet_n1_candidate_design_pass gauge",
+            f"telconet_n1_candidate_design_pass {1 if audit.passes_n_minus_one else 0}",
+            "# HELP telconet_n1_candidate_outages_total Modeled single-link "
+            "failures causing candidate service outage.",
+            "# TYPE telconet_n1_candidate_outages_total gauge",
+            f"telconet_n1_candidate_outages_total {audit.count(ServiceImpact.OUTAGE)}",
+            "",
+        ]
+    )

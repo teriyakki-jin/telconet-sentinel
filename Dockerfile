@@ -11,6 +11,7 @@ WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY src ./src
 COPY lab/intent.yml ./lab/intent.yml
+COPY lab/intent-dual-homed.yml ./lab/intent-dual-homed.yml
 COPY evidence/bfd-comparison.json ./evidence/bfd-comparison.json
 COPY evidence/bfd-repeated-trials.json ./evidence/bfd-repeated-trials.json
 

@@ -23,6 +23,7 @@ from .resilience import (
     LinkFailureScenario,
     ResilienceAudit,
     audit_single_link_failures,
+    render_candidate_resilience_metrics,
     render_resilience_metrics,
 )
 from .service import IncidentService
@@ -180,6 +181,7 @@ def create_app(
     experiment_evidence: dict[str, Any] | None = None,
     repeated_experiment_evidence: dict[str, Any] | None = None,
     convergence_store: ConvergenceRepository | None = None,
+    candidate_topology: Topology | None = None,
 ) -> FastAPI:
     if experiment_evidence is not None:
         validate_experiment_evidence(experiment_evidence)
@@ -193,6 +195,11 @@ def create_app(
     service = IncidentService(topology)
     live_store = convergence_store or ConvergenceStore()
     resilience_audit = audit_single_link_failures(topology)
+    candidate_audit = (
+        audit_single_link_failures(candidate_topology)
+        if candidate_topology is not None
+        else None
+    )
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -210,6 +217,8 @@ def create_app(
         )
         rendered += render_live_metrics(live_store.latest())
         rendered += render_resilience_metrics(resilience_audit)
+        if candidate_audit is not None:
+            rendered += render_candidate_resilience_metrics(candidate_audit)
         return PlainTextResponse(rendered, media_type="text/plain; version=0.0.4")
 
     @app.get("/api/topology")
@@ -240,6 +249,18 @@ def create_app(
     )
     def get_single_link_failure_audit() -> ResilienceAuditResponse:
         return _resilience_response(resilience_audit)
+
+    @app.get(
+        "/api/resilience/single-link-failures/candidate",
+        response_model=ResilienceAuditResponse,
+    )
+    def get_candidate_single_link_failure_audit() -> ResilienceAuditResponse:
+        if candidate_audit is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="candidate design is unavailable",
+            )
+        return _resilience_response(candidate_audit)
 
     @app.post(
         "/api/convergence-runs",
