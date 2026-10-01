@@ -112,11 +112,15 @@ def audit_single_node_failures(topology: Topology) -> NodeResilienceAudit:
             raise ValueError(f"access node has no baseline service path: {access}")
         baseline_costs[access] = distance
 
-    scenarios: list[NodeFailureScenario] = []
     transport_roles = {NodeRole.AGGREGATION, NodeRole.CORE}
-    for failed_node in (
+    transport_nodes = tuple(
         node for node in topology.nodes if node.role in transport_roles
-    ):
+    )
+    if not transport_nodes:
+        raise ValueError("N-1 node audit requires at least one transport node")
+
+    scenarios: list[NodeFailureScenario] = []
+    for failed_node in transport_nodes:
         unavailable: set[str] = set()
         degraded: set[str] = set()
         for access in access_nodes:

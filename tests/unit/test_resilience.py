@@ -137,3 +137,16 @@ def test_dual_homed_candidate_passes_every_transport_node_failure(
     assert audit.count(ServiceImpact.DEGRADED) == 4
     assert "telconet_n1_node_candidate_design_pass 1" in rendered
     assert "telconet_n1_node_candidate_outages_total 0" in rendered
+
+
+def test_rejects_node_audit_without_transport_nodes() -> None:
+    direct = Topology(
+        [
+            Node("access", NodeRole.ACCESS),
+            Node("service", NodeRole.SERVICE),
+        ],
+        [Link("access--service", "access", "service")],
+    )
+
+    with pytest.raises(ValueError, match="transport node"):
+        audit_single_node_failures(direct)
