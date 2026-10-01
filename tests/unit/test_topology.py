@@ -24,6 +24,28 @@ def test_shortest_distance_uses_link_cost_and_exclusion(redundant_topology: Topo
     )
 
 
+def test_shortest_distance_excludes_a_failed_transit_node(
+    redundant_topology: Topology,
+) -> None:
+    assert (
+        redundant_topology.shortest_distance(
+            "access1", {"service-host"}, excluded_node="core1"
+        )
+        is None
+    )
+    assert (
+        redundant_topology.shortest_distance(
+            "access1", {"core1", "core2"}, excluded_node="agg1"
+        )
+        == 110
+    )
+
+    with pytest.raises(ValueError, match="unknown node"):
+        redundant_topology.shortest_distance(
+            "access1", {"service-host"}, excluded_node="missing"
+        )
+
+
 def test_rejects_link_with_unknown_endpoint() -> None:
     nodes = [Node("access1", NodeRole.ACCESS)]
 

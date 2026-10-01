@@ -21,9 +21,13 @@ from .metrics import (
 from .models import Incident, NetworkEvent, ServiceImpact
 from .resilience import (
     LinkFailureScenario,
+    NodeFailureScenario,
+    NodeResilienceAudit,
     ResilienceAudit,
     audit_single_link_failures,
+    audit_single_node_failures,
     render_candidate_resilience_metrics,
+    render_node_resilience_metrics,
     render_resilience_metrics,
 )
 from .service import IncidentService
@@ -114,6 +118,21 @@ class ResilienceAuditResponse(BaseModel):
     scenarios: list[LinkFailureScenarioResponse]
 
 
+class NodeFailureScenarioResponse(BaseModel):
+    node_name: str
+    role: str
+    service_impact: str
+    affected_nodes: list[str]
+    affected_prefixes: list[str]
+
+
+class NodeResilienceAuditResponse(BaseModel):
+    scope: Literal["single_transport_node_failure"]
+    passes_n_minus_one: bool
+    summary: ResilienceSummaryResponse
+    scenarios: list[NodeFailureScenarioResponse]
+
+
 def _incident_response(incident: Incident) -> IncidentResponse:
     return IncidentResponse(
         id=incident.id,
@@ -176,6 +195,34 @@ def _resilience_response(audit: ResilienceAudit) -> ResilienceAuditResponse:
     )
 
 
+def _node_scenario_response(
+    scenario: NodeFailureScenario,
+) -> NodeFailureScenarioResponse:
+    return NodeFailureScenarioResponse(
+        node_name=scenario.node_name,
+        role=scenario.role.value,
+        service_impact=scenario.service_impact.value,
+        affected_nodes=list(scenario.affected_nodes),
+        affected_prefixes=list(scenario.affected_prefixes),
+    )
+
+
+def _node_resilience_response(
+    audit: NodeResilienceAudit,
+) -> NodeResilienceAuditResponse:
+    return NodeResilienceAuditResponse(
+        scope="single_transport_node_failure",
+        passes_n_minus_one=audit.passes_n_minus_one,
+        summary=ResilienceSummaryResponse(
+            total=audit.total_scenarios,
+            outage=audit.count(ServiceImpact.OUTAGE),
+            degraded=audit.count(ServiceImpact.DEGRADED),
+            redundancy_reduced=audit.count(ServiceImpact.REDUNDANCY_REDUCED),
+        ),
+        scenarios=[_node_scenario_response(scenario) for scenario in audit.scenarios],
+    )
+
+
 def create_app(
     topology: Topology,
     experiment_evidence: dict[str, Any] | None = None,
@@ -195,8 +242,14 @@ def create_app(
     service = IncidentService(topology)
     live_store = convergence_store or ConvergenceStore()
     resilience_audit = audit_single_link_failures(topology)
+    node_resilience_audit = audit_single_node_failures(topology)
     candidate_audit = (
         audit_single_link_failures(candidate_topology)
+        if candidate_topology is not None
+        else None
+    )
+    candidate_node_audit = (
+        audit_single_node_failures(candidate_topology)
         if candidate_topology is not None
         else None
     )
@@ -217,8 +270,14 @@ def create_app(
         )
         rendered += render_live_metrics(live_store.latest())
         rendered += render_resilience_metrics(resilience_audit)
+        rendered += render_node_resilience_metrics(node_resilience_audit)
         if candidate_audit is not None:
             rendered += render_candidate_resilience_metrics(candidate_audit)
+        if candidate_node_audit is not None:
+            rendered += render_node_resilience_metrics(
+                candidate_node_audit,
+                design="candidate",
+            )
         return PlainTextResponse(rendered, media_type="text/plain; version=0.0.4")
 
     @app.get("/api/topology")
@@ -261,6 +320,25 @@ def create_app(
                 detail="candidate design is unavailable",
             )
         return _resilience_response(candidate_audit)
+
+    @app.get(
+        "/api/resilience/single-node-failures",
+        response_model=NodeResilienceAuditResponse,
+    )
+    def get_single_node_failure_audit() -> NodeResilienceAuditResponse:
+        return _node_resilience_response(node_resilience_audit)
+
+    @app.get(
+        "/api/resilience/single-node-failures/candidate",
+        response_model=NodeResilienceAuditResponse,
+    )
+    def get_candidate_single_node_failure_audit() -> NodeResilienceAuditResponse:
+        if candidate_node_audit is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="candidate design is unavailable",
+            )
+        return _node_resilience_response(candidate_node_audit)
 
     @app.post(
         "/api/convergence-runs",

@@ -96,11 +96,18 @@ class Topology:
         source: str,
         targets: set[str],
         excluded_link: str | None = None,
+        excluded_node: str | None = None,
     ) -> int | None:
         self.node(source)
         if excluded_link is not None:
             self.link(excluded_link)
+        if excluded_node is not None:
+            self.node(excluded_node)
+        if source == excluded_node:
+            return None
         known_targets = targets.intersection(self._nodes_by_name)
+        if excluded_node is not None:
+            known_targets.discard(excluded_node)
         if not known_targets:
             return None
 
@@ -120,6 +127,8 @@ class Topology:
                 elif link.endpoint_b == current:
                     neighbor = link.endpoint_a
                 else:
+                    continue
+                if neighbor == excluded_node:
                     continue
                 candidate = distance + link.cost
                 if candidate < distances.get(neighbor, candidate + 1):

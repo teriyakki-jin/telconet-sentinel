@@ -70,6 +70,38 @@ def test_exposes_candidate_dual_homing_audit_and_metrics(
     assert "telconet_n1_candidate_outages_total 0" in metrics.text
 
 
+def test_exposes_baseline_and_candidate_transport_node_audits(
+    redundant_topology: Topology,
+) -> None:
+    candidate = load_topology(Path(__file__).parents[2] / "lab" / "intent-dual-homed.yml")
+    client = TestClient(
+        create_app(
+            redundant_topology,
+            experiment_evidence=_experiment_evidence(),
+            candidate_topology=candidate,
+        )
+    )
+
+    baseline = client.get("/api/resilience/single-node-failures")
+    proposed = client.get("/api/resilience/single-node-failures/candidate")
+    metrics = client.get("/metrics")
+
+    assert baseline.status_code == 200
+    assert baseline.json()["scope"] == "single_transport_node_failure"
+    assert baseline.json()["summary"] == {
+        "total": 4,
+        "outage": 1,
+        "degraded": 3,
+        "redundancy_reduced": 0,
+    }
+    assert proposed.status_code == 200
+    assert proposed.json()["summary"]["total"] == 4
+    assert proposed.json()["summary"]["outage"] == 0
+    assert proposed.json()["passes_n_minus_one"] is True
+    assert "telconet_n1_node_design_pass 0" in metrics.text
+    assert "telconet_n1_node_candidate_design_pass 1" in metrics.text
+
+
 def test_metrics_returns_service_unavailable_without_evidence(
     redundant_topology: Topology,
 ) -> None:
