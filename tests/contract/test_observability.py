@@ -206,3 +206,6 @@ def test_grafana_provisions_n_minus_one_resilience_dashboard() -> None:
     assert "telconet_n1_link_impact" in queries
     assert "telconet_n1_candidate_design_pass" in queries
     assert "telconet_n1_candidate_outages_total" in queries
+    assert "telconet_n1_node_design_pass" in queries
+    assert "telconet_n1_node_candidate_design_pass" in queries
+    assert "telconet_n1_node_candidate_outages_total" in queries

@@ -4,7 +4,7 @@ import yaml
 
 from telconet_sentinel.config import load_topology
 from telconet_sentinel.models import ServiceImpact
-from telconet_sentinel.resilience import audit_single_link_failures
+from telconet_sentinel.resilience import audit_single_link_failures, audit_single_node_failures
 
 ROOT = Path(__file__).parents[2]
 LAB = ROOT / "lab"
@@ -26,6 +26,11 @@ def test_dual_homed_intent_passes_every_single_link_failure() -> None:
     ) == 140
     assert audit.passes_n_minus_one
     assert audit.count(ServiceImpact.OUTAGE) == 0
+
+    node_audit = audit_single_node_failures(candidate)
+    assert node_audit.total_scenarios == 4
+    assert node_audit.passes_n_minus_one
+    assert node_audit.count(ServiceImpact.OUTAGE) == 0
 
 
 def test_dual_homed_lab_matches_intent_and_keeps_historical_lab_unchanged() -> None:
@@ -74,3 +79,7 @@ def test_dual_homing_e2e_injects_and_restores_service_link_failure() -> None:
     assert "trap cleanup EXIT" in scenario
     assert "bash scenarios/dual_homing_e2e.sh" in workflow
     assert "artifacts/dual-homing" in workflow
+    assert "NODE_ISOLATED core1" in scenario
+    assert 'wait_metric 140 "${artifact_dir}/route-node-failover.json"' in scenario
+    assert 'client-a-node-failover.log' in scenario
+    assert 'client-b-node-failover.log' in scenario

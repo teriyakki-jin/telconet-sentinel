@@ -1,7 +1,12 @@
 import pytest
 
 from telconet_sentinel.models import Link, Node, NodeRole, ServiceImpact
-from telconet_sentinel.resilience import audit_single_link_failures, render_resilience_metrics
+from telconet_sentinel.resilience import (
+    audit_single_link_failures,
+    audit_single_node_failures,
+    render_node_resilience_metrics,
+    render_resilience_metrics,
+)
 from telconet_sentinel.topology import Topology
 
 
@@ -87,3 +92,48 @@ def test_rejects_audit_without_access_nodes_or_a_baseline_service_path() -> None
     )
     with pytest.raises(ValueError, match="baseline service path"):
         audit_single_link_failures(disconnected)
+
+
+def test_audits_only_transport_nodes_and_exposes_baseline_core_spof(
+    redundant_topology: Topology,
+) -> None:
+    audit = audit_single_node_failures(redundant_topology)
+
+    assert audit.total_scenarios == 4
+    assert audit.passes_n_minus_one is False
+    assert audit.count(ServiceImpact.OUTAGE) == 1
+    assert [scenario.node_name for scenario in audit.scenarios] == [
+        "agg1",
+        "agg2",
+        "core1",
+        "core2",
+    ]
+    outage = next(
+        scenario
+        for scenario in audit.scenarios
+        if scenario.service_impact is ServiceImpact.OUTAGE
+    )
+    assert outage.node_name == "core1"
+    assert outage.role is NodeRole.CORE
+    assert outage.affected_nodes == ("access1", "access2")
+
+
+def test_dual_homed_candidate_passes_every_transport_node_failure(
+    redundant_topology: Topology,
+) -> None:
+    candidate = Topology(
+        redundant_topology.nodes,
+        [
+            *redundant_topology.links,
+            Link("core2--service-host", "core2", "service-host", 30),
+        ],
+    )
+
+    audit = audit_single_node_failures(candidate)
+    rendered = render_node_resilience_metrics(audit, design="candidate")
+
+    assert audit.passes_n_minus_one is True
+    assert audit.count(ServiceImpact.OUTAGE) == 0
+    assert audit.count(ServiceImpact.DEGRADED) == 4
+    assert "telconet_n1_node_candidate_design_pass 1" in rendered
+    assert "telconet_n1_node_candidate_outages_total 0" in rendered

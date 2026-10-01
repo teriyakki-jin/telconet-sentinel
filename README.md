@@ -30,8 +30,8 @@ FRRouting과 containerlab으로 Access–Aggregation–Core 전송망을 구성�
 | 라우팅 | Single Area 0 OSPF, 명시적 cost, `/31` point-to-point transit, `/32` router-id |
 | 장애 | 링크 carrier는 유지하고 `agg1:eth1` ingress 패킷을 100% 차단하는 원격 블랙홀 |
 | 비교 | OSPF hello/dead 1초/4초 vs BFD minimum TX/RX 100ms, multiplier 3 |
-| 구현 범위 | 망 설계, N-1 전수 분석, 실험 자동화, 실시간 수렴 수집기, SQLite event store, Prometheus alert, Grafana, 테스트와 CI |
-| 검증 | 106개 테스트, branch coverage 86.14%, 실제 containerlab E2E, Ruff, mypy, promtool, CodeQL, OpenSSF Scorecard |
+| 구현 범위 | 망 설계, 링크·전송 노드 N-1 전수 분석, 실험 자동화, 실시간 수렴 수집기, SQLite event store, Prometheus alert, Grafana, 테스트와 CI |
+| 검증 | 115개 테스트, branch coverage 86.38%, 실제 containerlab E2E, Ruff, mypy, promtool, CodeQL, OpenSSF Scorecard |
 
 ## 문제 정의
 
@@ -53,7 +53,7 @@ flowchart LR
     COLLECTOR -->|"typed events only"| API
     RAW --> JSON["recalculated JSON evidence"]
     JSON --> API["FastAPI · impact analysis · /metrics"]
-    INTENT["intent.yml"] --> AUDIT["N-1 single-link audit"]
+    INTENT["intent.yml"] --> AUDIT["N-1 link + transport-node audit"]
     AUDIT --> API
     API --> DB[("SQLite · recent 20 runs")]
     API --> PROM["Prometheus"]
@@ -114,7 +114,7 @@ OSPF cost  : 100 + 10 + 20 + 10 = 140
 
 전체 주소 계획, router-id, 장애별 예상 경로와 단일 장애점은 [OSPF 설계 문서](docs/OSPF_DESIGN.md)에 정리했습니다.
 
-## N-1 단일 링크 장애 전수 분석과 서비스 이중화
+## N-1 링크·전송 노드 장애 전수 분석과 서비스 이중화
 
 한 개의 예시 장애만 설명하는 데서 그치지 않고 `intent.yml`의 10개 링크를 하나씩 제외해 모든 Access 노드의 서비스 도달성과 최단 경로 cost 변화를 계산합니다. 이는 실측 가용성 수치가 아니라 현재 OSPF 설계에 대한 결정론적 graph 분석입니다.
 
@@ -127,11 +127,15 @@ OSPF cost  : 100 + 10 + 20 + 10 = 140
 
 기존 설계는 `core1--service-host` 단절 시 access1과 access2가 모두 서비스망에 도달하지 못하므로 **single-link N-1을 통과하지 않습니다.** 기존 실험 결과를 유지한 채 별도의 `intent-dual-homed.yml` 후보 설계를 만들고, `core2--service-host` 링크를 추가했습니다. 후보 설계는 11개 단일 링크 장애 시나리오에서 `OUTAGE`가 0개입니다. 이는 선언된 그래프와 cost에 대한 분석 결과이지, 실서비스 가용성 측정치는 아닙니다.
 
-후보 설계는 독립된 FRR containerlab에서 서비스 링크 장애도 검증했습니다. `core1--service-host` 링크를 내리면 access1의 서비스 경로 metric이 **30 → 70 → 30**(정상 → 우회 → 복구)으로 변했고, 장애 후 access1·access2 측 클라이언트에서 서비스 VIP `10.20.0.10/32`에 각각 ICMP가 도달했습니다. 이는 [CI E2E 실행과 원본 artifact](https://github.com/teriyakki-jin/telconet-sentinel/actions/runs/35316616585)에서 확인할 수 있습니다. 다만 장애 중 무손실이나 수렴시간 상한을 증명한 것은 아닙니다. 이 랩의 service-host는 OSPF를 구동하는 FRR 노드이며, 일반 서버의 이중 NIC 구성이나 물리적으로 분리된 전송 경로를 그대로 재현한 것은 아닙니다.
+같은 방식으로 Access·service endpoint를 제외한 전송 노드 `agg1`, `agg2`, `core1`, `core2`를 하나씩 제거합니다. 기존 설계는 `core1` 장애 시 `OUTAGE`가 발생하지만, dual-homed 후보는 네 시나리오 모두 서비스 도달성을 유지합니다.
+
+후보 설계는 독립된 FRR containerlab에서 서비스 링크와 노드 격리를 함께 검증합니다. `core1--service-host` 링크 장애 시 access1의 서비스 경로 metric은 **30 → 70 → 30**으로 변합니다. 이어 `core1`의 네 전송 인터페이스를 모두 내리면 **30 → 140 → 30**으로 우회·복구되며, 두 장애 모두 access1·access2 측 클라이언트에서 서비스 VIP `10.20.0.10/32` 도달성을 확인합니다. 다만 장애 중 무손실이나 수렴시간 상한을 증명한 것은 아닙니다. 이 랩의 service-host는 OSPF를 구동하는 FRR 노드이며, 일반 서버의 이중 NIC 구성이나 물리적으로 분리된 전송 경로를 그대로 재현한 것은 아닙니다.
 
 ```bash
 curl http://127.0.0.1:8000/api/resilience/single-link-failures
 curl http://127.0.0.1:8000/api/resilience/single-link-failures/candidate
+curl http://127.0.0.1:8000/api/resilience/single-node-failures
+curl http://127.0.0.1:8000/api/resilience/single-node-failures/candidate
 bash scenarios/dual_homing_e2e.sh
 ```
 
@@ -318,17 +322,17 @@ Live E2E는 랩 배포, BFD 활성화, baseline 검증, blackhole 주입, 다섯
 
 | 계층 | 검증 내용 |
 |---|---|
-| Unit | OSPF/BFD JSON 파싱, N-1 전수 분석, live transition, SQLite 보존·pruning·atomicity, p50/p95/max, topology·recovery 로직 |
-| API | N-1 scenario 응답, typed request, 재시작 후 수렴 event 조회, 중복 제거, 승인 상태 전이, Prometheus metrics |
+| Unit | OSPF/BFD JSON 파싱, 링크·노드 N-1 전수 분석, live transition, SQLite 보존·pruning·atomicity, p50/p95/max, topology·recovery 로직 |
+| API | 링크·노드 N-1 scenario 응답, typed request, 재시작 후 수렴 event 조회, 중복 제거, 승인 상태 전이, Prometheus metrics |
 | Contract | intent–containerlab 링크 일치, FRR image/capability, OSPF 설정, N-1·live dashboard, alert rule·E2E workflow |
 | Integration | 원시 로그에서 evidence 재계산, configuration fingerprint 일치 |
-| Lab E2E | 실제 FRR 6대에서 baseline 30, blackhole, BFD/OSPF down, RIB 140, ICMP 복구 검증 |
+| Lab E2E | 실제 FRR에서 blackhole 수렴, 이중 서비스 링크, core1 격리, RIB 전환, 양쪽 client ICMP 복구 검증 |
 | Static | Ruff, strict mypy, Bash syntax |
 | Security | CodeQL `security-extended` query로 Python 취약점·오류 분석 |
 | Supply chain | OpenSSF Scorecard, SHA-pinned Actions·base image, Dependabot으로 저장소 관행 평가 |
-| CI | 106개 테스트·branch coverage 80% gate, promtool rule test와 실제 containerlab E2E를 독립 workflow로 실행 |
+| CI | 115개 테스트·branch coverage 80% gate, promtool rule test와 실제 containerlab E2E를 독립 workflow로 실행 |
 
-현재 로컬 검증 결과는 **106 tests passed, branch coverage 86.14%**입니다. CodeQL과
+현재 로컬 검증 결과는 **115 tests passed, branch coverage 86.38%**입니다. CodeQL과
 OpenSSF Scorecard 결과는 README 상단의 배지에서 최신 실행 상태와 공개 평가를 확인할 수 있습니다.
 보안 문제는 공개 issue 대신 [Security Policy](SECURITY.md)의 비공개 신고 절차를 사용합니다.
 
@@ -350,13 +354,13 @@ telconet-sentinel/
 현재 결과는 격리된 로컬 containerlab 관측값이며 상용망 성능을 대표하지 않습니다.
 
 - Single Area 0이며 multi-area, BGP, MPLS L3VPN은 포함하지 않음
-- 서비스망이 core1에만 연결되어 service-facing link와 core1이 단일 장애점
+- 역사적 baseline은 서비스망이 core1에만 연결된 단일 장애점이며, dual-homed 후보에서 링크·전송 노드 N-1을 별도로 검증
 - live run은 SQLite에 최근 20개만 보관하므로 분산 API와 장기 시계열 보존은 지원하지 않음
 - alert rule은 로컬 Prometheus에서 평가하지만 Alertmanager 알림 전송과 on-call 연동은 포함하지 않음
 - OSPF authentication, 장기 부하, 장비 vendor 간 interoperability는 검증하지 않음
 - 승인 API는 로컬 typed state transition이며 운영자 인증과 실제 복구 실행기는 아님
 
-다음 단계는 동일 실험을 다중 Area 또는 BGP/MPLS L3VPN으로 확장하고, 장기 event store와 Alertmanager 기반 알림 전달을 연결하는 것입니다.
+다음 단계는 shared-risk link group처럼 동시에 소실될 수 있는 물리 장애 도메인을 intent에 명시하거나, 동일 실험을 다중 Area 또는 BGP/MPLS L3VPN으로 확장하는 것입니다.
 
 ## 기술 스택과 문서
 

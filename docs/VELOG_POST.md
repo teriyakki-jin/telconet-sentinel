@@ -335,7 +335,11 @@ blackhole 주입
 
 호스트 collector의 monotonic timestamp로 위 순서를 기록하고, 최근 20개 run은 SQLite volume에 보존한다. Prometheus에는 API scrape 실패, 미완료 수렴, data-plane 미복구가 20초 지속될 때 firing하는 simulation alert를 추가했으며 규칙은 CI의 `promtool` 테스트로 검증한다. 이 값과 alert 기준은 상용망 SLO가 아니라 해당 로컬 랩의 관측·운영 가드레일이다.
 
-이후 단계는 service-facing 이중화, multi-area 또는 BGP/MPLS L3VPN 확장, 장기 event store, Alertmanager 알림 전달이다.
+이후 service-facing 이중화를 추가해 후속 후보 설계를 검증했다. 기존 baseline은 10개 단일 링크 중 1개, 4개 전송 노드 중 `core1` 장애에서 서비스 경로가 끊겼다. 후보 설계는 `core2--service-host`를 추가해 11개 단일 링크와 `agg1`, `agg2`, `core1`, `core2`의 4개 노드 장애에서 `OUTAGE` 0개를 확인했다.
+
+containerlab에서는 서비스 링크 장애 시 route metric **30 → 70 → 30**, `core1`의 네 전송 인터페이스 격리 시 **30 → 140 → 30**을 확인하고 양쪽 client의 서비스 VIP 도달성을 검사한다. 이는 선언된 topology와 한 번의 node-isolation 실험 결과이며 무손실, 물리 경로 분리 또는 상용망 가용성을 의미하지 않는다.
+
+이후 단계는 shared-risk failure-domain 모델링, multi-area 또는 BGP/MPLS L3VPN 확장, 장기 event store, Alertmanager 알림 전달이다.
 
 ---
 

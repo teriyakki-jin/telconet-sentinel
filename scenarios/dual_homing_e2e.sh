@@ -24,7 +24,9 @@ clab() {
 cleanup() {
   set +e
   if [[ "${deployed}" == "1" ]]; then
-    docker exec "${core1}" ip link set dev eth4 up >/dev/null 2>&1
+    for interface in eth1 eth2 eth3 eth4; do
+      docker exec "${core1}" ip link set dev "${interface}" up >/dev/null 2>&1 || true
+    done
     clab destroy --topo "${lab_file}" --cleanup >"${artifact_dir}/destroy.log" 2>&1
   fi
 }
@@ -102,5 +104,21 @@ docker exec "${core1}" ip link set dev eth4 up
 wait_metric 30 "${artifact_dir}/route-restored.json"
 wait_ping "${client_a}" "${artifact_dir}/client-a-restored.log"
 wait_ping "${client_b}" "${artifact_dir}/client-b-restored.log"
-echo "E2E_DUAL_HOMING baseline=30 failover=70 restored=30 clients=2" | \
+
+for interface in eth1 eth2 eth3 eth4; do
+  docker exec "${core1}" ip link set dev "${interface}" down
+done
+echo "NODE_ISOLATED core1 interfaces=eth1,eth2,eth3,eth4" | \
+  tee "${artifact_dir}/node-fault.log"
+wait_metric 140 "${artifact_dir}/route-node-failover.json"
+wait_ping "${client_a}" "${artifact_dir}/client-a-node-failover.log"
+wait_ping "${client_b}" "${artifact_dir}/client-b-node-failover.log"
+
+for interface in eth1 eth2 eth3 eth4; do
+  docker exec "${core1}" ip link set dev "${interface}" up
+done
+wait_metric 30 "${artifact_dir}/route-node-restored.json"
+wait_ping "${client_a}" "${artifact_dir}/client-a-node-restored.log"
+wait_ping "${client_b}" "${artifact_dir}/client-b-node-restored.log"
+echo "E2E_DUAL_HOMING link=30/70/30 node=30/140/30 clients=2" | \
   tee "${artifact_dir}/result.log"
