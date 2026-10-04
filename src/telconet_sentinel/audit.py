@@ -9,11 +9,19 @@ from .topology import Topology
 
 
 @dataclass(frozen=True, slots=True)
+class AccessPathResult:
+    access_node: str
+    baseline_cost: int
+    post_fault_cost: int | None
+
+
+@dataclass(frozen=True, slots=True)
 class FaultScenarioResult:
     fault: FaultScenario
     service_impact: ServiceImpact
     affected_nodes: tuple[str, ...]
     affected_prefixes: tuple[str, ...]
+    paths: tuple[AccessPathResult, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,12 +80,20 @@ def audit_fault_scenarios(
 
         unavailable: set[str] = set()
         degraded: set[str] = set()
+        paths: list[AccessPathResult] = []
         for access in access_nodes:
             after = topology.shortest_distance_excluding(
                 access,
                 service_nodes,
                 excluded_links=fault.excluded_links,
                 excluded_nodes=fault.excluded_nodes,
+            )
+            paths.append(
+                AccessPathResult(
+                    access_node=access,
+                    baseline_cost=baseline_costs[access],
+                    post_fault_cost=after,
+                )
             )
             if after is None:
                 unavailable.add(access)
@@ -104,6 +120,7 @@ def audit_fault_scenarios(
                         for prefix in topology.node(node_name).prefixes
                     )
                 ),
+                paths=tuple(paths),
             )
         )
     return FaultAuditResult(tuple(results))

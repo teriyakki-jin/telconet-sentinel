@@ -56,6 +56,7 @@ flowchart LR
     INTENT["versioned intent YAML"] --> SCHEMA["strict NetworkIntent schema"]
     SCHEMA --> GRAPH["validated Topology"]
     GRAPH --> SCENARIO["typed FaultScenario factory"]
+    FD["failure-domains.yml"] --> SCENARIO
     SCENARIO --> AUDIT["common fault audit engine"]
     AUDIT --> API
     API --> DB[("SQLite · recent 20 runs")]
@@ -75,6 +76,7 @@ flowchart LR
 | `designs.yml` | 기존 evidence를 변경하지 않고 historical baseline과 candidate 관계를 선언 |
 | `fault.py` | 단일 링크·단일 노드·복합 장애를 `FaultScenario`로 표현 |
 | `audit.py` | 정상 경로와 장애 후 경로를 비교해 공통 `FaultAuditResult` 생성 |
+| `failure_domain.py` | SRLG schema를 검증하고 복합 장애·경로 cost·metrics로 변환 |
 | `resilience.py` | 기존 API·Prometheus 계약을 유지하는 link/node 호환 어댑터 |
 
 알 수 없는 필드, 지원하지 않는 schema version, boolean cost, 비정규 prefix, 중복 prefix·link ID, self-link, 존재하지 않는 endpoint, 잘못된 baseline 관계는 로딩 단계에서 거부합니다. 공통 엔진은 여러 링크와 노드를 동시에 제외할 수 있어 이후 SRLG를 추가할 때 판정 로직을 다시 만들지 않습니다. 상세 계약은 [Intent와 fault model 문서](docs/INTENT_MODEL.md)에 정리했습니다.
@@ -159,6 +161,25 @@ bash scenarios/dual_homing_e2e.sh
 [N-1 설계 감사 문서](docs/N1_DESIGN_AUDIT.md)와 [N-1 Resilience Dashboard](http://127.0.0.1:3000/d/telconet-n1-resilience)에서 기존 GAP와 후보 PASS를 비교할 수 있습니다. 대시보드의 링크별 분류 표는 기존 설계 기준입니다.
 
 ![기존 설계 GAP와 서비스 이중화 후보 PASS를 비교한 Grafana 대시보드](docs/assets/grafana-n1-resilience.png)
+
+## SRLG·Failure Domain 복합 장애 분석
+
+논리적 이중화가 물리적 독립성을 의미하지는 않습니다. `failure-domains.yml`에 여러 링크나 노드를 동시에 잃게 만드는 공통 장애 영역을 선언하고, 같은 fault audit engine으로 모든 Access의 장애 전후 최단 경로 cost와 서비스 도달성을 다시 계산합니다. Catalog는 `designs.yml`의 candidate ID와 topology canonical SHA-256을 교차 검증해 다른 설계 결과로 잘못 표시되는 것을 거부합니다.
+
+| Failure Domain | 선언된 공통 장애 | 결과 | 경로 변화 |
+|---|---|---|---|
+| `primary-site-power` | `agg1`, `core1` 동시 손실 | `DEGRADED` | access1 `30 → 140`, access2 `50 → 50` |
+| `service-entry` | 두 service-facing 링크 동시 단절 | **`OUTAGE`** | access1·access2 `→ unreachable` |
+
+따라서 dual-homed 후보는 **11개 단일 링크와 4개 전송 노드 N-1은 통과하지만, 선언된 2개 shared-risk 시나리오 중 1개에서 서비스 경로를 잃습니다.** 이 결과는 선언된 그래프와 failure domain에 대한 결정론적 분석이며, 실제 관로·전원·사이트 공유를 측정했다는 주장은 아닙니다.
+
+```bash
+curl http://127.0.0.1:8000/api/resilience/failure-domains/candidate
+curl http://127.0.0.1:8000/metrics | grep telconet_srlg
+```
+
+[SRLG 설계 감사 문서](docs/SRLG_DESIGN_AUDIT.md)와 [Shared-Risk Resilience Dashboard](http://127.0.0.1:3000/d/telconet-srlg-resilience)에서 domain별 영향과 판정 근거를 확인할 수 있습니다.
+체크인된 [failure-domain-audit.json](evidence/failure-domain-audit.json)은 `measured: false`인 결정론적 graph evidence이며, integration test가 두 선언 파일에서 매번 재계산해 일치 여부를 검증합니다.
 
 ## 반복 실험 설계
 
@@ -292,6 +313,7 @@ docker compose up -d --build
 | 반복 실험 dashboard | `http://127.0.0.1:3000/d/telconet-bfd-repeated-trials` |
 | Live convergence dashboard | `http://127.0.0.1:3000/d/telconet-live-convergence` |
 | N-1 resilience dashboard | `http://127.0.0.1:3000/d/telconet-n1-resilience` |
+| Shared-risk resilience dashboard | `http://127.0.0.1:3000/d/telconet-srlg-resilience` |
 | Prometheus | `http://127.0.0.1:9090` |
 | Prometheus alerts | `http://127.0.0.1:9090/alerts` |
 | Raw metrics | `http://127.0.0.1:8000/metrics` |
@@ -339,9 +361,9 @@ Live E2E는 랩 배포, BFD 활성화, baseline 검증, blackhole 주입, 다섯
 
 | 계층 | 검증 내용 |
 |---|---|
-| Unit | strict intent/catalog 검증, 공통 fault engine, OSPF/BFD JSON 파싱, 링크·노드 N-1 분석, live transition, SQLite 보존·pruning·atomicity |
-| API | 링크·노드 N-1 scenario 응답, typed request, 재시작 후 수렴 event 조회, 중복 제거, 승인 상태 전이, Prometheus metrics |
-| Contract | intent–containerlab 링크 일치, FRR image/capability, OSPF 설정, N-1·live dashboard, alert rule·E2E workflow |
+| Unit | strict intent/catalog 검증, 공통 fault engine, SRLG schema·경로 cost, OSPF/BFD JSON 파싱, 링크·노드 N-1 분석, SQLite 보존성 |
+| API | 링크·노드·failure-domain 감사 응답, typed request, 재시작 후 수렴 event 조회, 승인 상태 전이, Prometheus metrics |
+| Contract | intent–containerlab 링크 일치, FRR image/capability, OSPF 설정, N-1·SRLG·live dashboard, alert rule·E2E workflow |
 | Integration | 원시 로그에서 evidence 재계산, configuration fingerprint 일치 |
 | Lab E2E | 실제 FRR에서 blackhole 수렴, 이중 서비스 링크, core1 격리, RIB 전환, 양쪽 client ICMP 복구 검증 |
 | Static | Ruff, strict mypy, Bash syntax |
@@ -391,6 +413,7 @@ telconet-sentinel/
 
 - [OSPF 설계](docs/OSPF_DESIGN.md)
 - [N-1 단일 링크 설계 감사](docs/N1_DESIGN_AUDIT.md)
+- [SRLG·Failure Domain 설계 감사](docs/SRLG_DESIGN_AUDIT.md)
 - [Intent schema와 공통 fault model](docs/INTENT_MODEL.md)
 - [시스템 아키텍처와 신뢰 경계](docs/ARCHITECTURE.md)
 - [링크 장애 실험 Runbook](docs/RUNBOOK_LINK_FAILURE.md)

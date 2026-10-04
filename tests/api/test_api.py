@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from telconet_sentinel.api import create_app
 from telconet_sentinel.config import load_topology
 from telconet_sentinel.convergence import ConvergenceStore, SQLiteConvergenceStore
+from telconet_sentinel.failure_domain import load_failure_domains
 from telconet_sentinel.topology import Topology
 
 
@@ -100,6 +101,68 @@ def test_exposes_baseline_and_candidate_transport_node_audits(
     assert proposed.json()["passes_n_minus_one"] is True
     assert "telconet_n1_node_design_pass 0" in metrics.text
     assert "telconet_n1_node_candidate_design_pass 1" in metrics.text
+
+
+def test_exposes_candidate_shared_risk_audit_and_metrics(
+    redundant_topology: Topology,
+) -> None:
+    root = Path(__file__).parents[2]
+    candidate = load_topology(root / "lab" / "intent-dual-homed.yml")
+    failure_domains = load_failure_domains(root / "lab" / "failure-domains.yml")
+    client = TestClient(
+        create_app(
+            redundant_topology,
+            experiment_evidence=_experiment_evidence(),
+            candidate_topology=candidate,
+            failure_domains=failure_domains,
+        )
+    )
+
+    response = client.get("/api/resilience/failure-domains/candidate")
+    metrics = client.get("/metrics")
+
+    assert response.status_code == 200
+    report = response.json()
+    assert report["scope"] == "shared_risk_failure_domain"
+    assert report["design"] == "service-dual-homed"
+    assert report["passes_all"] is False
+    assert report["summary"] == {
+        "total": 2,
+        "outage": 1,
+        "degraded": 1,
+        "redundancy_reduced": 0,
+    }
+    service_entry = next(
+        scenario
+        for scenario in report["scenarios"]
+        if scenario["domain_id"] == "service-entry"
+    )
+    assert service_entry == {
+        "domain_id": "service-entry",
+        "domain_type": "shared_conduit",
+        "excluded_links": ["core1--service-host", "core2--service-host"],
+        "excluded_nodes": [],
+        "service_impact": "outage",
+        "affected_nodes": ["access1", "access2"],
+        "affected_prefixes": ["10.10.1.0/24", "10.10.2.0/24"],
+        "paths": [
+            {"access_node": "access1", "baseline_cost": 30, "post_fault_cost": None},
+            {"access_node": "access2", "baseline_cost": 50, "post_fault_cost": None},
+        ],
+    }
+    assert "telconet_srlg_design_pass 0" in metrics.text
+    assert 'telconet_srlg_scenarios_total{impact="outage"} 1' in metrics.text
+
+
+def test_shared_risk_endpoint_is_unavailable_without_catalog(
+    redundant_topology: Topology,
+) -> None:
+    client = TestClient(create_app(redundant_topology))
+
+    response = client.get("/api/resilience/failure-domains/candidate")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "failure-domain audit is unavailable"
 
 
 def test_metrics_returns_service_unavailable_without_evidence(

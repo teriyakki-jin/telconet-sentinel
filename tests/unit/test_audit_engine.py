@@ -72,6 +72,13 @@ def test_common_engine_supports_a_multi_component_fault(
     assert audit.passes_n_minus_one is False
     assert audit.scenarios[0].service_impact is ServiceImpact.OUTAGE
     assert audit.scenarios[0].affected_nodes == ("access1", "access2")
+    assert [
+        (path.access_node, path.baseline_cost, path.post_fault_cost)
+        for path in audit.scenarios[0].paths
+    ] == [
+        ("access1", 30, None),
+        ("access2", 50, None),
+    ]
 
 
 def test_common_engine_rejects_empty_or_unknown_faults(

@@ -54,7 +54,13 @@ FaultScenario(
 )
 ```
 
-Single-link and transport-node factories generate deterministic scenario identifiers. Composite scenarios can represent a future SRLG without adding another path-classification implementation.
+Single-link and transport-node factories generate deterministic scenario identifiers. Composite scenarios represent declared SRLG/failure-domain failures without adding another path-classification implementation.
+
+## Failure-domain catalog
+
+`lab/failure-domains.yml` is a separate strict version 1 document bound to the `service-dual-homed` design and its canonical topology SHA-256. Each domain has a bounded identifier, an allowlisted type, and at least two unique link or node components. The loader also caps domain/component counts and rejects duplicate YAML mapping keys. Unknown fields, coerced versions, duplicate components, nonexistent topology references, and topology fingerprint mismatches are rejected.
+
+The sidecar intentionally does not modify either intent file or the historical experiment fingerprint. A declaration is an analysis assumption: it records which components should fail together, but does not claim that the lab discovered a real conduit, power feed, or site relationship.
 
 ## Common audit engine
 
@@ -64,6 +70,6 @@ Single-link and transport-node factories generate deterministic scenario identif
 2. Calculate each Access node's baseline shortest-path cost.
 3. Recalculate with every link and node declared by the fault excluded.
 4. Classify the result as `OUTAGE`, `DEGRADED`, or `REDUNDANCY_REDUCED`.
-5. Return the affected Access nodes and their advertised prefixes.
+5. Return the affected Access nodes, advertised prefixes, and each Access node's baseline and post-fault path cost.
 
-The established link and node API responses and Prometheus metrics remain unchanged. They are adapters over the common result rather than separate analysis implementations.
+The established link and node API responses and Prometheus metrics remain unchanged. They are adapters over the common result rather than separate analysis implementations. The failure-domain adapter exposes the same result through `/api/resilience/failure-domains/candidate` and `telconet_srlg_*` metrics.

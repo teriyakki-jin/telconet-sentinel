@@ -1,0 +1,10 @@
+version: 1
+design: service-dual-homed
+topology_sha256: 38f18b126ce6c1131a5dd96ad03628b8504d86ed8a3634e40cbdb9295fc9566f
+failure_domains:
+  primary-site-power:
+    type: power_domain
+    nodes: [agg1, core1]
+  service-entry:
+    type: shared_conduit
+    links: [core1--service-host, core2--service-host]

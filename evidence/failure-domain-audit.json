@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "scope": "shared_risk_failure_domain",
+  "source": "deterministic_graph_analysis",
+  "measured": false,
+  "design": "service-dual-homed",
+  "topology_sha256": "38f18b126ce6c1131a5dd96ad03628b8504d86ed8a3634e40cbdb9295fc9566f",
+  "passes_all": false,
+  "summary": {
+    "total": 2,
+    "outage": 1,
+    "degraded": 1,
+    "redundancy_reduced": 0
+  },
+  "scenarios": [
+    {
+      "domain_id": "primary-site-power",
+      "domain_type": "power_domain",
+      "excluded_links": [],
+      "excluded_nodes": [
+        "agg1",
+        "core1"
+      ],
+      "service_impact": "degraded",
+      "affected_nodes": [
+        "access1"
+      ],
+      "affected_prefixes": [
+        "10.10.1.0/24"
+      ],
+      "paths": [
+        {
+          "access_node": "access1",
+          "baseline_cost": 30,
+          "post_fault_cost": 140
+        },
+        {
+          "access_node": "access2",
+          "baseline_cost": 50,
+          "post_fault_cost": 50
+        }
+      ]
+    },
+    {
+      "domain_id": "service-entry",
+      "domain_type": "shared_conduit",
+      "excluded_links": [
+        "core1--service-host",
+        "core2--service-host"
+      ],
+      "excluded_nodes": [],
+      "service_impact": "outage",
+      "affected_nodes": [
+        "access1",
+        "access2"
+      ],
+      "affected_prefixes": [
+        "10.10.1.0/24",
+        "10.10.2.0/24"
+      ],
+      "paths": [
+        {
+          "access_node": "access1",
+          "baseline_cost": 30,
+          "post_fault_cost": null
+        },
+        {
+          "access_node": "access2",
+          "baseline_cost": 50,
+          "post_fault_cost": null
+        }
+      ]
+    }
+  ]
+}

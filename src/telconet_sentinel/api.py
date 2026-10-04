@@ -13,6 +13,13 @@ from .convergence import (
     ConvergenceStore,
     render_live_metrics,
 )
+from .failure_domain import (
+    FailureDomainAudit,
+    FailureDomainCatalog,
+    FailureDomainScenarioResult,
+    audit_failure_domains,
+    render_failure_domain_metrics,
+)
 from .metrics import (
     render_experiment_metrics,
     validate_experiment_evidence,
@@ -133,6 +140,31 @@ class NodeResilienceAuditResponse(BaseModel):
     scenarios: list[NodeFailureScenarioResponse]
 
 
+class AccessPathResponse(BaseModel):
+    access_node: str
+    baseline_cost: int
+    post_fault_cost: int | None
+
+
+class FailureDomainScenarioResponse(BaseModel):
+    domain_id: str
+    domain_type: str
+    excluded_links: list[str]
+    excluded_nodes: list[str]
+    service_impact: str
+    affected_nodes: list[str]
+    affected_prefixes: list[str]
+    paths: list[AccessPathResponse]
+
+
+class FailureDomainAuditResponse(BaseModel):
+    scope: Literal["shared_risk_failure_domain"]
+    design: str
+    passes_all: bool
+    summary: ResilienceSummaryResponse
+    scenarios: list[FailureDomainScenarioResponse]
+
+
 def _incident_response(incident: Incident) -> IncidentResponse:
     return IncidentResponse(
         id=incident.id,
@@ -223,12 +255,55 @@ def _node_resilience_response(
     )
 
 
+def _failure_domain_scenario_response(
+    scenario: FailureDomainScenarioResult,
+) -> FailureDomainScenarioResponse:
+    return FailureDomainScenarioResponse(
+        domain_id=scenario.domain_id,
+        domain_type=scenario.domain_type.value,
+        excluded_links=list(scenario.excluded_links),
+        excluded_nodes=list(scenario.excluded_nodes),
+        service_impact=scenario.service_impact.value,
+        affected_nodes=list(scenario.affected_nodes),
+        affected_prefixes=list(scenario.affected_prefixes),
+        paths=[
+            AccessPathResponse(
+                access_node=path.access_node,
+                baseline_cost=path.baseline_cost,
+                post_fault_cost=path.post_fault_cost,
+            )
+            for path in scenario.paths
+        ],
+    )
+
+
+def _failure_domain_response(
+    audit: FailureDomainAudit,
+) -> FailureDomainAuditResponse:
+    return FailureDomainAuditResponse(
+        scope="shared_risk_failure_domain",
+        design=audit.design,
+        passes_all=audit.passes_all,
+        summary=ResilienceSummaryResponse(
+            total=audit.total_scenarios,
+            outage=audit.count(ServiceImpact.OUTAGE),
+            degraded=audit.count(ServiceImpact.DEGRADED),
+            redundancy_reduced=audit.count(ServiceImpact.REDUNDANCY_REDUCED),
+        ),
+        scenarios=[
+            _failure_domain_scenario_response(scenario)
+            for scenario in audit.scenarios
+        ],
+    )
+
+
 def create_app(
     topology: Topology,
     experiment_evidence: dict[str, Any] | None = None,
     repeated_experiment_evidence: dict[str, Any] | None = None,
     convergence_store: ConvergenceRepository | None = None,
     candidate_topology: Topology | None = None,
+    failure_domains: FailureDomainCatalog | None = None,
 ) -> FastAPI:
     if experiment_evidence is not None:
         validate_experiment_evidence(experiment_evidence)
@@ -251,6 +326,11 @@ def create_app(
     candidate_node_audit = (
         audit_single_node_failures(candidate_topology)
         if candidate_topology is not None
+        else None
+    )
+    failure_domain_audit = (
+        audit_failure_domains(candidate_topology, failure_domains)
+        if candidate_topology is not None and failure_domains is not None
         else None
     )
 
@@ -278,6 +358,8 @@ def create_app(
                 candidate_node_audit,
                 design="candidate",
             )
+        if failure_domain_audit is not None:
+            rendered += render_failure_domain_metrics(failure_domain_audit)
         return PlainTextResponse(rendered, media_type="text/plain; version=0.0.4")
 
     @app.get("/api/topology")
@@ -339,6 +421,18 @@ def create_app(
                 detail="candidate design is unavailable",
             )
         return _node_resilience_response(candidate_node_audit)
+
+    @app.get(
+        "/api/resilience/failure-domains/candidate",
+        response_model=FailureDomainAuditResponse,
+    )
+    def get_candidate_failure_domain_audit() -> FailureDomainAuditResponse:
+        if failure_domain_audit is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="failure-domain audit is unavailable",
+            )
+        return _failure_domain_response(failure_domain_audit)
 
     @app.post(
         "/api/convergence-runs",
