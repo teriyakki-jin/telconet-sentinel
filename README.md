@@ -31,7 +31,7 @@ FRRouting과 containerlab으로 Access–Aggregation–Core 전송망을 구성�
 | 장애 | 링크 carrier는 유지하고 `agg1:eth1` ingress 패킷을 100% 차단하는 원격 블랙홀 |
 | 비교 | OSPF hello/dead 1초/4초 vs BFD minimum TX/RX 100ms, multiplier 3 |
 | 구현 범위 | 망 설계, 링크·전송 노드 N-1 전수 분석, 실험 자동화, 실시간 수렴 수집기, SQLite event store, Prometheus alert, Grafana, 테스트와 CI |
-| 검증 | 116개 테스트, branch coverage 86.42%, 실제 containerlab E2E, Ruff, mypy, promtool, CodeQL, OpenSSF Scorecard |
+| 검증 | strict intent validation, 공통 fault audit engine, 실제 containerlab E2E, Ruff, mypy, promtool, CodeQL, OpenSSF Scorecard |
 
 ## 문제 정의
 
@@ -53,7 +53,10 @@ flowchart LR
     COLLECTOR -->|"typed events only"| API
     RAW --> JSON["recalculated JSON evidence"]
     JSON --> API["FastAPI · impact analysis · /metrics"]
-    INTENT["intent.yml"] --> AUDIT["N-1 link + transport-node audit"]
+    INTENT["versioned intent YAML"] --> SCHEMA["strict NetworkIntent schema"]
+    SCHEMA --> GRAPH["validated Topology"]
+    GRAPH --> SCENARIO["typed FaultScenario factory"]
+    SCENARIO --> AUDIT["common fault audit engine"]
     AUDIT --> API
     API --> DB[("SQLite · recent 20 runs")]
     API --> PROM["Prometheus"]
@@ -61,6 +64,20 @@ flowchart LR
     PROM --> GRAFANA["Grafana"]
     JSON --> TEST["contract · integration tests"]
 ```
+
+## 구조적 설계
+
+네트워크 선언, 장애 시나리오, 판정 로직, 외부 표현을 분리했습니다.
+
+| 계층 | 책임 |
+|---|---|
+| `intent.py` | version 1 YAML을 strict Pydantic model로 검증하고 `Topology`로 변환 |
+| `designs.yml` | 기존 evidence를 변경하지 않고 historical baseline과 candidate 관계를 선언 |
+| `fault.py` | 단일 링크·단일 노드·복합 장애를 `FaultScenario`로 표현 |
+| `audit.py` | 정상 경로와 장애 후 경로를 비교해 공통 `FaultAuditResult` 생성 |
+| `resilience.py` | 기존 API·Prometheus 계약을 유지하는 link/node 호환 어댑터 |
+
+알 수 없는 필드, 지원하지 않는 schema version, boolean cost, 비정규 prefix, 중복 prefix·link ID, self-link, 존재하지 않는 endpoint, 잘못된 baseline 관계는 로딩 단계에서 거부합니다. 공통 엔진은 여러 링크와 노드를 동시에 제외할 수 있어 이후 SRLG를 추가할 때 판정 로직을 다시 만들지 않습니다. 상세 계약은 [Intent와 fault model 문서](docs/INTENT_MODEL.md)에 정리했습니다.
 
 ## OSPF 네트워크 설계
 
@@ -217,7 +234,7 @@ Prometheus는 API scrape 실패, 미완료 수렴, data-plane 미복구 상태�
 
 > `799ms`와 `1,080ms`는 실서비스 SLA나 일반화된 OSPF 수렴시간이 아닙니다. 이 저장소의 containerlab 토폴로지, FRR 10.7.0, BFD 100ms × 3, OSPF 설정, 100ms polling과 해당 CI 실행 환경에서 얻은 관측 상한값입니다.
 
-지원서 요약:
+프로젝트 한 줄 요약:
 
 > FRR 6노드 containerlab 환경에서 BFD 기반 링크 장애 시 OSPF 우회 경로 수렴을 E2E로 검증했습니다. Collector 원본 타임스탬프로 장애부터 데이터 플레인 복구까지의 인과 순서를 측정하고 Prometheus·Grafana로 시각화했으며, 수렴 관측 상한 799ms와 ICMP 복구 관측 상한 1,080ms를 확인했습니다.
 
@@ -322,7 +339,7 @@ Live E2E는 랩 배포, BFD 활성화, baseline 검증, blackhole 주입, 다섯
 
 | 계층 | 검증 내용 |
 |---|---|
-| Unit | OSPF/BFD JSON 파싱, 링크·노드 N-1 전수 분석, live transition, SQLite 보존·pruning·atomicity, p50/p95/max, topology·recovery 로직 |
+| Unit | strict intent/catalog 검증, 공통 fault engine, OSPF/BFD JSON 파싱, 링크·노드 N-1 분석, live transition, SQLite 보존·pruning·atomicity |
 | API | 링크·노드 N-1 scenario 응답, typed request, 재시작 후 수렴 event 조회, 중복 제거, 승인 상태 전이, Prometheus metrics |
 | Contract | intent–containerlab 링크 일치, FRR image/capability, OSPF 설정, N-1·live dashboard, alert rule·E2E workflow |
 | Integration | 원시 로그에서 evidence 재계산, configuration fingerprint 일치 |
@@ -330,9 +347,9 @@ Live E2E는 랩 배포, BFD 활성화, baseline 검증, blackhole 주입, 다섯
 | Static | Ruff, strict mypy, Bash syntax |
 | Security | CodeQL `security-extended` query로 Python 취약점·오류 분석 |
 | Supply chain | OpenSSF Scorecard, SHA-pinned Actions·base image, Dependabot으로 저장소 관행 평가 |
-| CI | 116개 테스트·branch coverage 80% gate, promtool rule test와 실제 containerlab E2E를 독립 workflow로 실행 |
+| CI | branch coverage 80% gate, promtool rule test와 실제 containerlab E2E를 독립 workflow로 실행 |
 
-현재 로컬 검증 결과는 **116 tests passed, branch coverage 86.42%**입니다. CodeQL과
+현재 로컬 검증 결과는 아래 검증 명령과 CI에서 확인합니다. CodeQL과
 OpenSSF Scorecard 결과는 README 상단의 배지에서 최신 실행 상태와 공개 평가를 확인할 수 있습니다.
 보안 문제는 공개 issue 대신 [Security Policy](SECURITY.md)의 비공개 신고 절차를 사용합니다.
 
@@ -343,7 +360,7 @@ telconet-sentinel/
 ├── lab/                       # containerlab topology, intent, FRR configs
 ├── scenarios/                 # carrier-down·blackhole·반복·live E2E 자동화
 ├── evidence/                  # raw logs와 재계산된 JSON evidence
-├── src/telconet_sentinel/     # impact analysis, API, parsers, metrics
+├── src/telconet_sentinel/     # intent, fault/audit domain, API, parsers, metrics
 ├── observability/             # Prometheus와 Grafana provisioning
 ├── tests/                     # unit·API·contract·integration tests
 └── docs/                      # OSPF 설계, architecture, runbook
@@ -374,6 +391,7 @@ telconet-sentinel/
 
 - [OSPF 설계](docs/OSPF_DESIGN.md)
 - [N-1 단일 링크 설계 감사](docs/N1_DESIGN_AUDIT.md)
+- [Intent schema와 공통 fault model](docs/INTENT_MODEL.md)
 - [시스템 아키텍처와 신뢰 경계](docs/ARCHITECTURE.md)
 - [링크 장애 실험 Runbook](docs/RUNBOOK_LINK_FAILURE.md)
 - [수렴 상태와 알림 Runbook](docs/RUNBOOK_ALERTS.md)

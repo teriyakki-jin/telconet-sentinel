@@ -11,9 +11,12 @@ flowchart LR
     CLAB --> COLLECTOR["host live collector · 100ms poll"]
     COLLECTOR -->|"typed convergence events"| API
     API --> STORE[("SQLite · bounded recent runs")]
-    INTENT["intent.yml"] --> GRAPH["in-memory topology graph"]
+    CATALOG["designs.yml"] --> INTENT["versioned intent YAML"]
+    INTENT --> SCHEMA["strict Pydantic schema"]
+    SCHEMA --> GRAPH["validated topology graph"]
     GRAPH --> IMPACT["cost-aware impact analysis"]
-    GRAPH --> N1["all link + transport-node exclusions"]
+    GRAPH --> FACTORY["typed fault scenario factories"]
+    FACTORY --> N1["common fault audit engine"]
     N1 --> API
     API --> IMPACT
     IMPACT --> INCIDENT["incident + impact + evidence"]
@@ -27,6 +30,17 @@ flowchart LR
     PROM --> RULES["simulation alert rules · 20s hold"]
     PROM --> GRAFANA["Grafana provisioned dashboard"]
 ```
+
+## Analysis boundaries
+
+The analysis path has four explicit layers:
+
+1. `intent.py` rejects malformed or ambiguous YAML before domain objects exist.
+2. `Topology` owns graph identity and weighted path calculation, including sets of excluded links and nodes.
+3. `fault.py` declares immutable link, node, and composite fault scenarios.
+4. `audit.py` owns the single reachability and cost-comparison algorithm. `resilience.py` only adapts its results to the established link/node API and metric contracts.
+
+`lab/designs.yml` declares which intent is the historical baseline and which is a candidate. This sidecar keeps the relationship explicit without changing `lab/intent.yml`, whose bytes are part of the checked-in 40-trial evidence fingerprint.
 
 ## Trust boundaries
 
@@ -70,3 +84,4 @@ All router links participate in OSPF area 0. Interface costs create explicit pri
 - Phase 4b: Alertmanager delivery, BGP/MPLS L3VPN, distributed event storage, and streaming telemetry.
 - Phase 5a: completed deterministic N-1 single-link audit and Grafana scenario matrix.
 - Phase 5b: completed service dual-homing design and transport-node failure audit; shared-risk failure-domain modeling remains.
+- Foundation 1: completed strict versioned intent/catalog validation and a common multi-component fault audit engine.

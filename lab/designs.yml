@@ -1,0 +1,9 @@
+version: 1
+designs:
+  historical-baseline:
+    intent: intent.yml
+    role: baseline
+  service-dual-homed:
+    intent: intent-dual-homed.yml
+    role: candidate
+    based_on: historical-baseline

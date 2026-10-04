@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .impact import analyze_link_down
-from .models import NetworkEvent, NodeRole, ServiceImpact
+from .audit import audit_fault_scenarios
+from .fault import link_failure_scenarios, transport_node_failure_scenarios
+from .models import NodeRole, ServiceImpact
 from .topology import Topology
 
 
@@ -64,97 +65,39 @@ class NodeResilienceAudit:
 
 
 def audit_single_link_failures(topology: Topology) -> ResilienceAudit:
-    access_nodes = tuple(
-        node.name for node in topology.nodes if node.role is NodeRole.ACCESS
-    )
-    if not access_nodes:
-        raise ValueError("N-1 audit requires at least one access node")
-    service_nodes = {
-        node.name for node in topology.nodes if node.role is NodeRole.SERVICE
-    }
-    if not service_nodes:
-        raise ValueError("N-1 audit requires at least one service node")
-    for access in access_nodes:
-        if topology.shortest_distance(access, service_nodes) is None:
-            raise ValueError(f"access node has no baseline service path: {access}")
-
+    audit = audit_fault_scenarios(topology, link_failure_scenarios(topology))
     scenarios: list[LinkFailureScenario] = []
-    for link in topology.links:
-        analysis = analyze_link_down(topology, NetworkEvent(link.id))
+    for result in audit.scenarios:
+        link_id = next(iter(result.fault.excluded_links))
+        link = topology.link(link_id)
         scenarios.append(
             LinkFailureScenario(
-                link_id=link.id,
+                link_id=link_id,
                 endpoints=(link.endpoint_a, link.endpoint_b),
-                service_impact=analysis.service_impact,
-                affected_nodes=analysis.affected_nodes,
-                affected_prefixes=analysis.affected_prefixes,
+                service_impact=result.service_impact,
+                affected_nodes=result.affected_nodes,
+                affected_prefixes=result.affected_prefixes,
             )
         )
     return ResilienceAudit(tuple(scenarios))
 
 
 def audit_single_node_failures(topology: Topology) -> NodeResilienceAudit:
-    access_nodes = tuple(
-        node.name for node in topology.nodes if node.role is NodeRole.ACCESS
+    audit = audit_fault_scenarios(
+        topology,
+        transport_node_failure_scenarios(topology),
     )
-    service_nodes = {
-        node.name for node in topology.nodes if node.role is NodeRole.SERVICE
-    }
-    if not access_nodes:
-        raise ValueError("N-1 audit requires at least one access node")
-    if not service_nodes:
-        raise ValueError("N-1 audit requires at least one service node")
-
-    baseline_costs: dict[str, int] = {}
-    for access in access_nodes:
-        distance = topology.shortest_distance(access, service_nodes)
-        if distance is None:
-            raise ValueError(f"access node has no baseline service path: {access}")
-        baseline_costs[access] = distance
-
-    transport_roles = {NodeRole.AGGREGATION, NodeRole.CORE}
-    transport_nodes = tuple(
-        node for node in topology.nodes if node.role in transport_roles
-    )
-    if not transport_nodes:
-        raise ValueError("N-1 node audit requires at least one transport node")
-
     scenarios: list[NodeFailureScenario] = []
-    for failed_node in transport_nodes:
-        unavailable: set[str] = set()
-        degraded: set[str] = set()
-        for access in access_nodes:
-            after = topology.shortest_distance(
-                access,
-                service_nodes,
-                excluded_node=failed_node.name,
-            )
-            if after is None:
-                unavailable.add(access)
-            elif after > baseline_costs[access]:
-                degraded.add(access)
-
-        affected_access = unavailable | degraded
-        if unavailable:
-            impact = ServiceImpact.OUTAGE
-        elif degraded:
-            impact = ServiceImpact.DEGRADED
-        else:
-            impact = ServiceImpact.REDUNDANCY_REDUCED
-        affected_nodes = tuple(sorted(affected_access))
+    for result in audit.scenarios:
+        node_name = next(iter(result.fault.excluded_nodes))
+        node = topology.node(node_name)
         scenarios.append(
             NodeFailureScenario(
-                node_name=failed_node.name,
-                role=failed_node.role,
-                service_impact=impact,
-                affected_nodes=affected_nodes,
-                affected_prefixes=tuple(
-                    sorted(
-                        prefix
-                        for node_name in affected_nodes
-                        for prefix in topology.node(node_name).prefixes
-                    )
-                ),
+                node_name=node_name,
+                role=node.role,
+                service_impact=result.service_impact,
+                affected_nodes=result.affected_nodes,
+                affected_prefixes=result.affected_prefixes,
             )
         )
     return NodeResilienceAudit(tuple(scenarios))

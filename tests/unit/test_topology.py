@@ -46,6 +46,26 @@ def test_shortest_distance_excludes_a_failed_transit_node(
         )
 
 
+def test_shortest_distance_supports_multiple_component_exclusions(
+    redundant_topology: Topology,
+) -> None:
+    assert (
+        redundant_topology.shortest_distance_excluding(
+            "access1",
+            {"service-host"},
+            excluded_links={"core1--core2", "core1--service-host"},
+        )
+        is None
+    )
+
+    with pytest.raises(ValueError, match="unknown link"):
+        redundant_topology.shortest_distance_excluding(
+            "access1",
+            {"service-host"},
+            excluded_links={"missing"},
+        )
+
+
 def test_rejects_link_with_unknown_endpoint() -> None:
     nodes = [Node("access1", NodeRole.ACCESS)]
 

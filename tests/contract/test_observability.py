@@ -22,6 +22,9 @@ def test_compose_declares_local_hardened_observability_services() -> None:
     assert "COPY lab/intent-dual-homed.yml ./lab/intent-dual-homed.yml" in (
         ROOT / "Dockerfile"
     ).read_text(encoding="utf-8")
+    assert "COPY lab/designs.yml ./lab/designs.yml" in (
+        ROOT / "Dockerfile"
+    ).read_text(encoding="utf-8")
     assert "telconet-state:/var/lib/telconet" in services["api"]["volumes"]
     assert "telconet-state" in compose["volumes"]
     assert services["prometheus"]["image"] == "prom/prometheus:v3.14.0"

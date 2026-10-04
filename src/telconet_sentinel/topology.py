@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
-from collections.abc import Iterable
+from collections.abc import Iterable, Set
 from heapq import heappop, heappush
 
 from .models import Link, Node
@@ -98,16 +98,32 @@ class Topology:
         excluded_link: str | None = None,
         excluded_node: str | None = None,
     ) -> int | None:
+        excluded_links = {excluded_link} if excluded_link is not None else set()
+        excluded_nodes = {excluded_node} if excluded_node is not None else set()
+        return self.shortest_distance_excluding(
+            source,
+            targets,
+            excluded_links=excluded_links,
+            excluded_nodes=excluded_nodes,
+        )
+
+    def shortest_distance_excluding(
+        self,
+        source: str,
+        targets: set[str],
+        *,
+        excluded_links: Set[str] = frozenset(),
+        excluded_nodes: Set[str] = frozenset(),
+    ) -> int | None:
         self.node(source)
-        if excluded_link is not None:
-            self.link(excluded_link)
-        if excluded_node is not None:
-            self.node(excluded_node)
-        if source == excluded_node:
+        for link_id in excluded_links:
+            self.link(link_id)
+        for node_name in excluded_nodes:
+            self.node(node_name)
+        if source in excluded_nodes:
             return None
         known_targets = targets.intersection(self._nodes_by_name)
-        if excluded_node is not None:
-            known_targets.discard(excluded_node)
+        known_targets.difference_update(excluded_nodes)
         if not known_targets:
             return None
 
@@ -120,7 +136,7 @@ class Topology:
             if current in known_targets:
                 return distance
             for link in self._links_by_id.values():
-                if link.id == excluded_link:
+                if link.id in excluded_links:
                     continue
                 if link.endpoint_a == current:
                     neighbor = link.endpoint_b
@@ -128,7 +144,7 @@ class Topology:
                     neighbor = link.endpoint_a
                 else:
                     continue
-                if neighbor == excluded_node:
+                if neighbor in excluded_nodes:
                     continue
                 candidate = distance + link.cost
                 if candidate < distances.get(neighbor, candidate + 1):
