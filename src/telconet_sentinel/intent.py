@@ -5,7 +5,6 @@ import re
 from enum import Enum
 from pathlib import Path
 
-import yaml
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -17,6 +16,7 @@ from pydantic import (
 
 from .models import Link, Node, NodeRole
 from .topology import Topology
+from .yaml_loader import load_yaml
 
 _IDENTIFIER_PATTERN = re.compile(r"^[a-z][a-z0-9-]{0,127}$")
 
@@ -189,10 +189,10 @@ class NetworkIntent(BaseModel):
 
 
 def load_intent(path: Path) -> NetworkIntent:
-    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    document = load_yaml(path)
     return NetworkIntent.model_validate(document)
 
 
 def load_design_catalog(path: Path) -> DesignCatalog:
-    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    document = load_yaml(path)
     return DesignCatalog.model_validate(document)

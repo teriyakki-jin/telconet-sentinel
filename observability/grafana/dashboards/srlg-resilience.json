@@ -1,0 +1,89 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "N-1 Resilience",
+      "type": "link",
+      "url": "/d/telconet-n1-resilience"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [{"options": {"0": {"color": "red", "text": "GAP FOUND"}, "1": {"color": "green", "text": "PASS"}}, "type": "value"}],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 8, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_srlg_design_pass", "instant": true, "legendFormat": "candidate", "range": false, "refId": "A"}],
+      "title": "Candidate · shared-risk status",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 5, "w": 8, "x": 8, "y": 0},
+      "id": 2,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_srlg_scenarios_total{impact=\"outage\"}", "instant": true, "legendFormat": "outage", "range": false, "refId": "A"}],
+      "title": "Shared-risk · OUTAGE",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 5, "w": 8, "x": 16, "y": 0},
+      "id": 3,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_srlg_scenarios_total{impact=\"degraded\"}", "instant": true, "legendFormat": "degraded", "range": false, "refId": "A"}],
+      "title": "Shared-risk · DEGRADED",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}, "overrides": []},
+      "gridPos": {"h": 9, "w": 14, "x": 0, "y": 5},
+      "id": 4,
+      "options": {"cellHeight": "sm", "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_srlg_impact", "format": "table", "instant": true, "legendFormat": "{{domain_id}}", "range": false, "refId": "A"}],
+      "title": "Failure-domain impact matrix",
+      "transformations": [{"id": "labelsToFields", "options": {"mode": "columns"}}, {"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true}, "indexByName": {"domain_id": 0, "domain_type": 1, "impact": 2, "Value": 3}, "renameByName": {"Value": "modeled", "domain_id": "failure domain", "domain_type": "type", "impact": "impact"}}}],
+      "type": "table"
+    },
+    {
+      "datasource": {"type": "datasource", "uid": "grafana"},
+      "gridPos": {"h": 9, "w": 10, "x": 14, "y": 5},
+      "id": 5,
+      "options": {"code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false}, "content": "### Interpretation\n\nThe dual-homed candidate passes every modeled single-link and transport-node failure, but it does **not** pass every declared shared-risk failure.\n\n- `primary-site-power`: access1 path cost 30 → 140; service remains reachable.\n- `service-entry`: both service-facing links are lost together; both Access networks become unreachable.\n\nThese are deterministic graph results for declared failure domains, not evidence of physical diversity or production availability.", "mode": "markdown"},
+      "pluginVersion": "13.1.0",
+      "title": "What this proves",
+      "type": "text"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 42,
+  "tags": ["telconet", "ospf", "srlg", "shared-risk", "resilience"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "TelcoNet Sentinel · Shared-Risk Resilience",
+  "uid": "telconet-srlg-resilience",
+  "version": 1,
+  "weekStart": ""
+}

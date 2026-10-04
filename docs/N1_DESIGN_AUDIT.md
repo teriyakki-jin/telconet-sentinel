@@ -63,6 +63,7 @@ curl http://127.0.0.1:8000/api/resilience/single-link-failures
 curl http://127.0.0.1:8000/api/resilience/single-link-failures/candidate
 curl http://127.0.0.1:8000/api/resilience/single-node-failures
 curl http://127.0.0.1:8000/api/resilience/single-node-failures/candidate
+curl http://127.0.0.1:8000/api/resilience/failure-domains/candidate
 curl http://127.0.0.1:8000/metrics | grep telconet_n1
 ```
 
@@ -70,4 +71,4 @@ Grafana compares the baseline and candidate link and transport-node results at `
 
 ## Scope boundary
 
-The N-1 results are deterministic analyses of declared graphs and OSPF costs. The node audit models loss of one declared aggregation or core node and all incident links; it does not model shared-risk groups, power domains, simultaneous failures, ECMP capacity, packet loss, protocol convergence time, or physical path diversity. The candidate lab service endpoint runs FRR and OSPF; it is not an unmodified general-purpose server. Those other properties require additional intent fields and lab experiments rather than assumptions.
+The N-1 results are deterministic analyses of declared graphs and OSPF costs. The node audit models loss of one declared aggregation or core node and all incident links; it does not by itself establish ECMP capacity, packet loss, protocol convergence time, or physical path diversity. Declared simultaneous failures and shared-risk assumptions are analyzed separately in [SRLG_DESIGN_AUDIT.md](SRLG_DESIGN_AUDIT.md). The candidate lab service endpoint runs FRR and OSPF; it is not an unmodified general-purpose server.

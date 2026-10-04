@@ -16,6 +16,7 @@ flowchart LR
     SCHEMA --> GRAPH["validated topology graph"]
     GRAPH --> IMPACT["cost-aware impact analysis"]
     GRAPH --> FACTORY["typed fault scenario factories"]
+    DOMAINS["failure-domains.yml"] --> FACTORY
     FACTORY --> N1["common fault audit engine"]
     N1 --> API
     API --> IMPACT
@@ -33,12 +34,13 @@ flowchart LR
 
 ## Analysis boundaries
 
-The analysis path has four explicit layers:
+The analysis path has five explicit layers:
 
 1. `intent.py` rejects malformed or ambiguous YAML before domain objects exist.
 2. `Topology` owns graph identity and weighted path calculation, including sets of excluded links and nodes.
 3. `fault.py` declares immutable link, node, and composite fault scenarios.
 4. `audit.py` owns the single reachability and cost-comparison algorithm. `resilience.py` only adapts its results to the established link/node API and metric contracts.
+5. `failure_domain.py` validates declared shared-risk groups and adapts their composite faults, access-path costs, API output, and bounded-label metrics.
 
 `lab/designs.yml` declares which intent is the historical baseline and which is a candidate. This sidecar keeps the relationship explicit without changing `lab/intent.yml`, whose bytes are part of the checked-in 40-trial evidence fingerprint.
 
@@ -83,5 +85,6 @@ All router links participate in OSPF area 0. Interface costs create explicit pri
 - Phase 4a: completed bounded SQLite event persistence and promtool-tested local alert evaluation.
 - Phase 4b: Alertmanager delivery, BGP/MPLS L3VPN, distributed event storage, and streaming telemetry.
 - Phase 5a: completed deterministic N-1 single-link audit and Grafana scenario matrix.
-- Phase 5b: completed service dual-homing design and transport-node failure audit; shared-risk failure-domain modeling remains.
+- Phase 5b: completed service dual-homing design and transport-node failure audit.
+- Phase 5c: completed strict shared-risk failure-domain modeling, cost-aware composite audit, API, metrics, and Grafana matrix.
 - Foundation 1: completed strict versioned intent/catalog validation and a common multi-component fault audit engine.

@@ -19,10 +19,19 @@ def test_compose_declares_local_hardened_observability_services() -> None:
     assert services["api"]["environment"]["TELCONET_CANDIDATE_INTENT"] == (
         "/app/lab/intent-dual-homed.yml"
     )
+    assert services["api"]["environment"]["TELCONET_FAILURE_DOMAINS"] == (
+        "/app/lab/failure-domains.yml"
+    )
+    assert services["api"]["environment"]["TELCONET_DESIGN_CATALOG"] == (
+        "/app/lab/designs.yml"
+    )
     assert "COPY lab/intent-dual-homed.yml ./lab/intent-dual-homed.yml" in (
         ROOT / "Dockerfile"
     ).read_text(encoding="utf-8")
     assert "COPY lab/designs.yml ./lab/designs.yml" in (
+        ROOT / "Dockerfile"
+    ).read_text(encoding="utf-8")
+    assert "COPY lab/failure-domains.yml ./lab/failure-domains.yml" in (
         ROOT / "Dockerfile"
     ).read_text(encoding="utf-8")
     assert "telconet-state:/var/lib/telconet" in services["api"]["volumes"]
@@ -212,3 +221,27 @@ def test_grafana_provisions_n_minus_one_resilience_dashboard() -> None:
     assert "telconet_n1_node_design_pass" in queries
     assert "telconet_n1_node_candidate_design_pass" in queries
     assert "telconet_n1_node_candidate_outages_total" in queries
+
+
+def test_grafana_provisions_shared_risk_resilience_dashboard() -> None:
+    dashboard = json.loads(
+        (
+            ROOT
+            / "observability"
+            / "grafana"
+            / "dashboards"
+            / "srlg-resilience.json"
+        ).read_text(encoding="utf-8")
+    )
+
+    assert dashboard["uid"] == "telconet-srlg-resilience"
+    assert dashboard["title"] == "TelcoNet Sentinel · Shared-Risk Resilience"
+    queries = {
+        target["expr"]
+        for panel in dashboard["panels"]
+        for target in panel.get("targets", [])
+    }
+    assert "telconet_srlg_design_pass" in queries
+    assert 'telconet_srlg_scenarios_total{impact="outage"}' in queries
+    assert 'telconet_srlg_scenarios_total{impact="degraded"}' in queries
+    assert "telconet_srlg_impact" in queries

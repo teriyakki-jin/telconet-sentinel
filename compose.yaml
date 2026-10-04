@@ -4,6 +4,8 @@ services:
     environment:
       TELCONET_INTENT: /app/lab/intent.yml
       TELCONET_CANDIDATE_INTENT: /app/lab/intent-dual-homed.yml
+      TELCONET_DESIGN_CATALOG: /app/lab/designs.yml
+      TELCONET_FAILURE_DOMAINS: /app/lab/failure-domains.yml
       TELCONET_REPEATED_EXPERIMENT: /app/evidence/bfd-repeated-trials.json
       TELCONET_STATE_DB: /var/lib/telconet/convergence.sqlite3
     ports:

@@ -241,3 +241,25 @@ def test_rejects_semantically_invalid_intent(
 
     with pytest.raises(ValueError, match=message):
         load_intent(path)
+
+
+def test_rejects_duplicate_yaml_mapping_keys(tmp_path: Path) -> None:
+    path = tmp_path / "intent.yml"
+    path.write_text(
+        """version: 1
+nodes:
+  access:
+    role: access
+  access:
+    role: core
+  service:
+    role: service
+links:
+  - id: access--service
+    endpoints: [access, service]
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="duplicate mapping key"):
+        load_intent(path)

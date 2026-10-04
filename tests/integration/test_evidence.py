@@ -2,8 +2,14 @@ import json
 from pathlib import Path
 
 from telconet_sentinel.bfd_comparison import build_comparison
+from telconet_sentinel.config import load_topology
 from telconet_sentinel.configuration import configuration_fingerprint
 from telconet_sentinel.evidence import build_simulated_evidence, write_evidence
+from telconet_sentinel.failure_domain import (
+    audit_failure_domains,
+    build_failure_domain_evidence,
+    load_failure_domains,
+)
 from telconet_sentinel.measurement import parse_measurement_log
 from telconet_sentinel.models import NetworkEvent
 from telconet_sentinel.repeated_trials import build_repeated_evidence
@@ -99,3 +105,23 @@ def test_repeated_evidence_is_recalculated_from_forty_raw_logs() -> None:
     assert evidence["environment"]["configuration_sha256"] == (
         configuration_fingerprint(ROOT)
     )
+
+
+def test_failure_domain_evidence_is_recalculated_from_declared_inputs() -> None:
+    stored = json.loads(
+        (ROOT / "evidence" / "failure-domain-audit.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    topology = load_topology(ROOT / "lab" / "intent-dual-homed.yml")
+    catalog = load_failure_domains(ROOT / "lab" / "failure-domains.yml")
+    recalculated = build_failure_domain_evidence(
+        audit_failure_domains(topology, catalog)
+    )
+
+    assert stored == recalculated
+    assert stored["source"] == "deterministic_graph_analysis"
+    assert stored["measured"] is False
+    assert stored["summary"]["outage"] == 1
+    assert "convergence_ms" not in stored
+    assert "packet_loss_percent" not in stored
