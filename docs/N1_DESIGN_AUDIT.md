@@ -4,7 +4,7 @@
 
 Does every Access node retain a path to a service node after any one modeled link is removed?
 
-The audit loads `lab/intent.yml`, excludes each link exactly once, and compares every Access node's baseline and post-failure shortest-path cost. It reuses the same topology-aware impact logic as the incident API.
+The audit loads `lab/intent.yml` through the strict versioned schema, creates one typed `FaultScenario` per link, and compares every Access node's baseline and post-failure shortest-path cost through the common fault audit engine. Link and node endpoints are compatibility views over that same result model.
 
 ## Classification contract
 

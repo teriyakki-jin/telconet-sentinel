@@ -10,6 +10,7 @@ WORKDIR /app
 
 COPY pyproject.toml README.md ./
 COPY src ./src
+COPY lab/designs.yml ./lab/designs.yml
 COPY lab/intent.yml ./lab/intent.yml
 COPY lab/intent-dual-homed.yml ./lab/intent-dual-homed.yml
 COPY evidence/bfd-comparison.json ./evidence/bfd-comparison.json
