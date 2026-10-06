@@ -11,7 +11,7 @@ The API stores the latest 20 convergence runs and their typed events in `/var/li
 ```bash
 docker compose up -d --build
 docker compose restart api
-curl http://127.0.0.1:8000/api/convergence-runs/latest
+curl http://127.0.0.1:18000/api/convergence-runs/latest
 ```
 
 `docker compose down` preserves the named volume. Treat volume removal as an explicit destructive reset.

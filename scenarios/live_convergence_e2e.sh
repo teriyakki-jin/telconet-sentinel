@@ -8,6 +8,10 @@ api_url="${TELCONET_API_URL:-http://127.0.0.1:18000}"
 api_port="${api_url##*:}"
 api_pid=""
 keep_lab="${TELCONET_KEEP_LAB:-0}"
+mgmt_network="${TELCONET_MGMT_NETWORK:-telconet-mgmt}"
+mgmt_ipv4_subnet="${TELCONET_MGMT_IPV4_SUBNET:-172.30.20.0/24}"
+mgmt_ipv6_subnet="${TELCONET_MGMT_IPV6_SUBNET:-3fff:172:30:20::/64}"
+runtime_lab_file=""
 client_a="clab-telconet-sentinel-client-a"
 access_1="clab-telconet-sentinel-access1"
 agg_1="clab-telconet-sentinel-agg1"
@@ -20,23 +24,51 @@ else
   python_command=(python3)
 fi
 
+prepare_runtime_lab() {
+  runtime_lab_file="$(mktemp "${project_root}/lab/.telconet-runtime.XXXXXX.clab.yml")"
+  awk \
+    -v network="${mgmt_network}" \
+    -v ipv4="${mgmt_ipv4_subnet}" \
+    -v ipv6="${mgmt_ipv6_subnet}" \
+    'NR == 1 {
+      print
+      print ""
+      print "mgmt:"
+      print "  network: " network
+      print "  ipv4-subnet: " ipv4
+      print "  ipv6-subnet: " ipv6
+      next
+    }
+    { print }' "${lab_file}" >"${runtime_lab_file}"
+}
+
 deploy_lab() {
   if [[ "${TELCONET_CLAB_SUDO:-0}" == "1" ]]; then
-    sudo containerlab deploy --topo "${lab_file}" --reconfigure
+    sudo containerlab deploy --topo "${runtime_lab_file}" --reconfigure
   else
-    containerlab deploy --topo "${lab_file}" --reconfigure
+    containerlab deploy --topo "${runtime_lab_file}" --reconfigure
   fi
 }
 
 destroy_lab() {
   if [[ "${TELCONET_CLAB_SUDO:-0}" == "1" ]]; then
-    sudo containerlab destroy --topo "${lab_file}" --cleanup
+    sudo containerlab destroy --topo "${runtime_lab_file}" --cleanup
   else
-    containerlab destroy --topo "${lab_file}" --cleanup
+    containerlab destroy --topo "${runtime_lab_file}" --cleanup
   fi
 }
 
+remove_stale_runtime_labs() {
+  find "${project_root}/lab" \
+    -maxdepth 1 \
+    -type f \
+    -name '.telconet-runtime.*.clab.yml' \
+    ! -path "${runtime_lab_file}" \
+    -delete
+}
+
 cleanup() {
+  local remaining_containers
   set +e
   docker exec "${agg_1}" tc qdisc del dev eth1 clsact >/dev/null 2>&1
   if [[ -n "${api_pid}" ]]; then
@@ -46,6 +78,11 @@ cleanup() {
   docker ps -a >"${artifact_dir}/containers-after.txt" 2>&1
   if [[ "${keep_lab}" != "1" ]]; then
     destroy_lab >>"${artifact_dir}/destroy.log" 2>&1
+  fi
+  if remaining_containers="$(
+    docker ps -a --format '{{.Names}}' 2>>"${artifact_dir}/destroy.log"
+  )" && ! grep -q '^clab-telconet-sentinel-' <<<"${remaining_containers}"; then
+    rm -f "${runtime_lab_file}"
   fi
 }
 trap cleanup EXIT
@@ -57,10 +94,12 @@ for command in containerlab docker curl; do
   }
 done
 docker info >/dev/null
+prepare_runtime_lab
 
 if docker ps -a --format '{{.Names}}' | grep -q '^clab-telconet-sentinel-'; then
   destroy_lab >"${artifact_dir}/pre-cleanup.log" 2>&1
 fi
+remove_stale_runtime_labs
 deploy_lab 2>&1 | tee "${artifact_dir}/deploy.log"
 
 for _ in $(seq 1 30); do

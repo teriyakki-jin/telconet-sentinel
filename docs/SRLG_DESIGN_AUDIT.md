@@ -26,8 +26,8 @@ Summary: 2 declared failure domains, 1 outage, 1 degraded, and 0 redundancy-redu
 ## Interfaces
 
 ```bash
-curl http://127.0.0.1:8000/api/resilience/failure-domains/candidate
-curl http://127.0.0.1:8000/metrics | grep telconet_srlg
+curl http://127.0.0.1:18000/api/resilience/failure-domains/candidate
+curl http://127.0.0.1:18000/metrics | grep telconet_srlg
 ```
 
 Grafana provisions the domain status, impact counts, and scenario matrix at `http://127.0.0.1:3000/d/telconet-srlg-resilience`.

@@ -59,12 +59,12 @@ Run locally with `bash scenarios/dual_homing_e2e.sh` where containerlab and Dock
 ## Interfaces
 
 ```bash
-curl http://127.0.0.1:8000/api/resilience/single-link-failures
-curl http://127.0.0.1:8000/api/resilience/single-link-failures/candidate
-curl http://127.0.0.1:8000/api/resilience/single-node-failures
-curl http://127.0.0.1:8000/api/resilience/single-node-failures/candidate
-curl http://127.0.0.1:8000/api/resilience/failure-domains/candidate
-curl http://127.0.0.1:8000/metrics | grep telconet_n1
+curl http://127.0.0.1:18000/api/resilience/single-link-failures
+curl http://127.0.0.1:18000/api/resilience/single-link-failures/candidate
+curl http://127.0.0.1:18000/api/resilience/single-node-failures
+curl http://127.0.0.1:18000/api/resilience/single-node-failures/candidate
+curl http://127.0.0.1:18000/api/resilience/failure-domains/candidate
+curl http://127.0.0.1:18000/metrics | grep telconet_n1
 ```
 
 Grafana compares the baseline and candidate link and transport-node results at `http://127.0.0.1:3000/d/telconet-n1-resilience`. The link-by-link table remains the baseline link audit.
