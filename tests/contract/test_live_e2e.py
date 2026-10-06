@@ -67,6 +67,18 @@ def test_e2e_script_has_a_cleanup_trap_and_uses_the_live_collector() -> None:
     )
 
     assert "containerlab deploy" in script
+    assert "TELCONET_MGMT_NETWORK:-telconet-mgmt" in script
+    assert "TELCONET_MGMT_IPV4_SUBNET:-172.30.20.0/24" in script
+    assert "TELCONET_MGMT_IPV6_SUBNET:-3fff:172:30:20::/64" in script
+    assert 'runtime_lab_file="$(mktemp ' in script
+    assert script.count('--topo "${runtime_lab_file}"') == 4
+    assert 'rm -f "${runtime_lab_file}"' in script
+    assert 'remaining_containers="$(' in script
+    assert "docker ps -a --format '{{.Names}}'" in script
+    assert "&& ! grep -q '^clab-telconet-sentinel-'" in script
+    assert "remove_stale_runtime_labs" in script
+    assert "! -path \"${runtime_lab_file}\"" in script
+    assert '--topo "${lab_file}"' not in script
     assert "route-baseline.json" in script
     assert "bfd-baseline.json" in script
     assert "ospf-baseline.json" in script

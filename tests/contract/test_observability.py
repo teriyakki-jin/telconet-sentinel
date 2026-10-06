@@ -40,9 +40,10 @@ def test_compose_declares_local_hardened_observability_services() -> None:
     assert services["grafana"]["image"] == "grafana/grafana:13.1.0"
     assert services["prometheus"]["ports"] == ["127.0.0.1:9090:9090"]
     assert services["grafana"]["ports"] == ["127.0.0.1:3000:3000"]
+    assert services["api"]["ports"] == ["127.0.0.1:18000:8000"]
     assert services["grafana"]["environment"][
         "GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH"
-    ] == "/etc/grafana/dashboards/bfd-comparison.json"
+    ] == "/etc/grafana/dashboards/network-overview.json"
     assert services["grafana"]["environment"]["GF_AUTH_BASIC_ENABLED"] == "false"
     assert services["grafana"]["environment"][
         "GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION"
@@ -171,6 +172,51 @@ def test_grafana_provisions_prometheus_and_bfd_dashboard() -> None:
         'sum(telconet_detection_seconds{profile="bfd_100x3"})) / '
         'sum(telconet_detection_seconds{profile="ospf_only"}) * 100'
     ) in queries
+
+
+def test_grafana_provisions_network_operations_overview() -> None:
+    dashboard = json.loads(
+        (
+            ROOT
+            / "observability"
+            / "grafana"
+            / "dashboards"
+            / "network-overview.json"
+        ).read_text(encoding="utf-8")
+    )
+
+    assert dashboard["uid"] == "telconet-network-overview"
+    assert dashboard["title"] == "TelcoNet Sentinel · Network Operations Overview"
+    assert {"telconet", "overview", "ospf", "bfd", "resilience"} <= set(
+        dashboard["tags"]
+    )
+
+    queries = {
+        target["expr"]
+        for panel in dashboard["panels"]
+        for target in panel.get("targets", [])
+    }
+    assert 'up{job="telconet"}' in queries
+    assert 'telconet_live_bfd_peer_up{profile="bfd_100x3"}' in queries
+    assert 'telconet_live_ospf_neighbor_full{profile="bfd_100x3"}' in queries
+    assert (
+        'telconet_live_event_offset_seconds{event="data_plane_recovered",'
+        'profile="bfd_100x3"} * 1000'
+    ) in queries
+    assert 'telconet_detection_summary_seconds{profile="ospf_only",stat="p95"}' in queries
+    assert 'telconet_detection_summary_seconds{profile="bfd_100x3",stat="p95"}' in queries
+    assert "telconet_n1_candidate_design_pass" in queries
+    assert "telconet_n1_node_candidate_design_pass" in queries
+    assert 'telconet_srlg_scenarios_total{impact="outage"}' in queries
+    assert 'telconet_live_event_offset_seconds{profile="bfd_100x3"} * 1000' in queries
+
+    topology_panel = next(panel for panel in dashboard["panels"] if panel["id"] == 6)
+    topology = topology_panel["options"]["content"]
+    assert "OSPF Area 0" in topology
+    assert "Primary cost 10" in topology
+    assert "Backup cost 100" in topology
+    assert "metric 30" in topology
+    assert "metric 140" in topology
 
 
 def test_grafana_provisions_repeated_trial_distribution_dashboard() -> None:
