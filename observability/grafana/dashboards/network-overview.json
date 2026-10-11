@@ -6,12 +6,25 @@
   "graphTooltip": 1,
   "id": null,
   "links": [
-    {"asDropdown": false, "includeVars": false, "keepTime": true, "tags": [], "targetBlank": false, "title": "BFD 20-trial comparison", "type": "link", "url": "/d/telconet-bfd-repeated-trials"},
+    {"asDropdown": false, "includeVars": false, "keepTime": true, "tags": [], "targetBlank": false, "title": "BFD trials", "type": "link", "url": "/d/telconet-bfd-repeated-trials"},
     {"asDropdown": false, "includeVars": false, "keepTime": true, "tags": [], "targetBlank": false, "title": "Live convergence", "type": "link", "url": "/d/telconet-live-convergence"},
     {"asDropdown": false, "includeVars": false, "keepTime": true, "tags": [], "targetBlank": false, "title": "N-1 audit", "type": "link", "url": "/d/telconet-n1-resilience"},
     {"asDropdown": false, "includeVars": false, "keepTime": true, "tags": [], "targetBlank": false, "title": "Shared risk", "type": "link", "url": "/d/telconet-srlg-resilience"}
   ],
   "panels": [
+    {
+      "datasource": {"type": "datasource", "uid": "grafana"},
+      "gridPos": {"h": 2, "w": 24, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
+        "content": "## Network Operations Overview",
+        "mode": "markdown"
+      },
+      "pluginVersion": "13.1.0",
+      "transparent": true,
+      "type": "text"
+    },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "description": "Prometheus can scrape the TelcoNet Sentinel /metrics target. This is not an end-to-end API health check.",
@@ -24,49 +37,30 @@
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 5, "x": 0, "y": 0},
-      "id": 1,
-      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "left", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"editorMode": "code", "expr": "up{job=\"telconet\"}", "instant": true, "legendFormat": "API", "range": false, "refId": "A"}],
-      "title": "METRICS TARGET · 1s scrape",
-      "type": "stat"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "description": "BFD state captured during the latest BFD live convergence run.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {"mode": "thresholds"},
-          "mappings": [{"options": {"0": {"color": "red", "text": "DOWN"}, "1": {"color": "green", "text": "UP"}}, "type": "value"}],
-          "noValue": "NO LIVE RUN",
-          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
-        },
-        "overrides": []
-      },
-      "gridPos": {"h": 4, "w": 5, "x": 5, "y": 0},
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 2},
       "id": 2,
-      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "left", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"editorMode": "code", "expr": "telconet_live_bfd_peer_up{profile=\"bfd_100x3\"}", "instant": true, "legendFormat": "BFD", "range": false, "refId": "A"}],
-      "title": "LATEST RUN · BFD PEER",
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "left", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "up{job=\"telconet\"}", "instant": true, "legendFormat": "Prometheus target", "range": false, "refId": "A"}],
+      "title": "SCRAPE STATUS",
       "type": "stat"
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "description": "OSPF neighbor state captured during the latest BFD live convergence run.",
+      "description": "The latest BFD live experiment reached its terminal state. Fault-state samples belong to the experiment timeline; they are not current device health.",
       "fieldConfig": {
         "defaults": {
           "color": {"mode": "thresholds"},
-          "mappings": [{"options": {"0": {"color": "red", "text": "DOWN"}, "1": {"color": "green", "text": "FULL"}}, "type": "value"}],
+          "mappings": [{"options": {"0": {"color": "orange", "text": "INCOMPLETE"}, "1": {"color": "green", "text": "COMPLETE"}}, "type": "value"}],
           "noValue": "NO LIVE RUN",
-          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+          "thresholds": {"mode": "absolute", "steps": [{"color": "orange", "value": null}, {"color": "green", "value": 1}]}
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 5, "x": 10, "y": 0},
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 2},
       "id": 3,
-      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "left", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"editorMode": "code", "expr": "telconet_live_ospf_neighbor_full{profile=\"bfd_100x3\"}", "instant": true, "legendFormat": "OSPF", "range": false, "refId": "A"}],
-      "title": "LATEST RUN · OSPF",
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "left", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_live_run_complete{profile=\"bfd_100x3\"}", "instant": true, "legendFormat": "BFD live run", "range": false, "refId": "A"}],
+      "title": "LATEST RUN",
       "type": "stat"
     },
     {
@@ -74,18 +68,18 @@
       "description": "Observed upper bound from fault injection to ICMP recovery, derived from the collector event timestamp.",
       "fieldConfig": {
         "defaults": {
-          "color": {"fixedColor": "green", "mode": "fixedColor"},
+          "color": {"fixedColor": "blue", "mode": "fixed"},
           "decimals": 0,
           "noValue": "NO LIVE RUN",
-          "unit": "ms"
+          "unit": "suffix: ms"
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 5, "x": 15, "y": 0},
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 2},
       "id": 4,
-      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "left", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
-      "targets": [{"editorMode": "code", "expr": "telconet_live_event_offset_seconds{event=\"data_plane_recovered\",profile=\"bfd_100x3\"} * 1000", "instant": true, "legendFormat": "ICMP recovery", "range": false, "refId": "A"}],
-      "title": "DATA PLANE · recovery bound",
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "left", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_live_event_offset_seconds{event=\"data_plane_recovered\",profile=\"bfd_100x3\"} * 1000", "instant": true, "legendFormat": "observed upper bound", "range": false, "refId": "A"}],
+      "title": "ICMP RECOVERY",
       "type": "stat"
     },
     {
@@ -101,61 +95,61 @@
         },
         "overrides": []
       },
-      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0},
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 2},
       "id": 5,
       "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "left", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
-      "targets": [{"editorMode": "code", "expr": "telconet_srlg_scenarios_total{impact=\"outage\"}", "instant": true, "legendFormat": "GAP", "range": false, "refId": "A"}],
-      "title": "SHARED RISK · outage gaps",
+      "targets": [{"editorMode": "code", "expr": "telconet_srlg_scenarios_total{impact=\"outage\"}", "instant": true, "legendFormat": "declared outage gaps", "range": false, "refId": "A"}],
+      "title": "SHARED-RISK GAP",
       "type": "stat"
     },
     {
       "datasource": {"type": "datasource", "uid": "grafana"},
       "description": "The baseline drives measured BFD and convergence runs. The candidate adds service dual-homing for deterministic N-1 and shared-risk audits.",
-      "gridPos": {"h": 12, "w": 14, "x": 0, "y": 4},
+      "gridPos": {"h": 12, "w": 14, "x": 0, "y": 6},
       "id": 6,
       "options": {
         "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
-        "content": "### OSPF Area 0 · baseline measurement topology\n\n`service-host 10.20.0.0/24 ── cost 10 ── core1`\n\n| Layer | Primary cost 10 | Backup cost 100 |\n|---|---|---|\n| Core ↔ aggregation | `core1–agg1`, `core2–agg2` | `core1–agg2`, `core2–agg1` |\n| Aggregation ↔ access | `agg1–access1`, `agg2–access2` | `agg1–access2`, `agg2–access1` |\n\nThe cores also have a `core1–core2` transit link at cost `20`. The normal access1 service path is **metric 30**; the tested cross-fabric failover path is **metric 140**.\n\n### Candidate used by N-1 and shared-risk audits\n\nThe transport fabric stays the same. `intent-dual-homed.yml` changes the service prefix to `10.20.0.10/32` and adds `core2–service-host` at cost `30`. This is a modeled design candidate, not part of the measured BFD trial topology.\n\nFRR router IDs are `access1 .11`, `access2 .12`, `agg1 .21`, `agg2 .22`, `core1 .31`, and `core2 .32` in `10.255.0.0/24`; the candidate service-host uses `.40`. Transit links use `/31` point-to-point addressing.",
+        "content": "### OSPF Area 0 · measured baseline\n\n\u0060\u0060\u0060text\n                      SERVICE  10.20.0.0/24\n                               │ cost 10\n                    ┌──────────┴──────────┐\n                    │       core1         │\n                    └──────────┬──────────┘\n                               │ cost 20\n                    ┌──────────┴──────────┐\n                    │       core2         │\n                    └─────────────────────┘\n\n             PRIMARY  ━━━ cost 10     BACKUP  ┄┄┄ cost 100\n\n     core1 ━━━ agg1 ━━━ access1      core1 ┄┄┄ agg2 ┄┄┄ access1\n     core2 ━━━ agg2 ━━━ access2      core2 ┄┄┄ agg1 ┄┄┄ access2\n\u0060\u0060\u0060\n\n**access1 normal** \u0060access1 → agg1 → core1 → service\u0060 · **metric 30**  \n**tested failover** \u0060access1 → agg2 → core2 → core1 → service\u0060 · **metric 140**\n\n---\n\n**Audit candidate** keeps this fabric and adds \u0060core2 → service-host\u0060 at cost \u006030\u0060 for service dual-homing. It is used by the modeled N-1/SRLG audits, not by the measured BFD trial.",
         "mode": "markdown"
       },
       "pluginVersion": "13.1.0",
-      "title": "Topology models & traffic-path policy",
+      "title": "TOPOLOGY & PATH POLICY",
       "type": "text"
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "fieldConfig": {"defaults": {"color": {"fixedColor": "orange", "mode": "fixedColor"}, "decimals": 3, "noValue": "NO EVIDENCE", "unit": "s"}, "overrides": []},
-      "gridPos": {"h": 5, "w": 3, "x": 14, "y": 4},
+      "fieldConfig": {"defaults": {"color": {"fixedColor": "orange", "mode": "fixed"}, "decimals": 3, "noValue": "NO EVIDENCE", "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 5, "x": 14, "y": 6},
       "id": 7,
-      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "left", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
       "targets": [{"editorMode": "code", "expr": "telconet_detection_summary_seconds{profile=\"ospf_only\",stat=\"p95\"}", "instant": true, "legendFormat": "OSPF only", "range": false, "refId": "A"}],
-      "title": "DETECTION · P95",
+      "title": "OSPF P95",
       "type": "stat"
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 2, "noValue": "NO EVIDENCE", "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 50}, {"color": "green", "value": 80}]}, "unit": "percent"}, "overrides": []},
-      "gridPos": {"h": 5, "w": 4, "x": 17, "y": 4},
+      "fieldConfig": {"defaults": {"color": {"fixedColor": "green", "mode": "fixed"}, "decimals": 3, "noValue": "NO EVIDENCE", "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 5, "x": 19, "y": 6},
       "id": 8,
-      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
-      "targets": [{"editorMode": "code", "expr": "(sum(telconet_detection_summary_seconds{profile=\"ospf_only\",stat=\"p95\"}) - sum(telconet_detection_summary_seconds{profile=\"bfd_100x3\",stat=\"p95\"})) / sum(telconet_detection_summary_seconds{profile=\"ospf_only\",stat=\"p95\"}) * 100", "instant": true, "legendFormat": "p95 reduction", "range": false, "refId": "A"}],
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "left", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_detection_summary_seconds{profile=\"bfd_100x3\",stat=\"p95\"}", "instant": true, "legendFormat": "BFD 100 ms × 3", "range": false, "refId": "A"}],
+      "title": "BFD P95",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 1, "noValue": "NO EVIDENCE", "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "yellow", "value": 50}, {"color": "green", "value": 80}]}, "unit": "percent"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 10, "x": 14, "y": 10},
+      "id": 9,
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "left", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "(sum(telconet_detection_summary_seconds{profile=\"ospf_only\",stat=\"p95\"}) - sum(telconet_detection_summary_seconds{profile=\"bfd_100x3\",stat=\"p95\"})) / sum(telconet_detection_summary_seconds{profile=\"ospf_only\",stat=\"p95\"}) * 100", "instant": true, "legendFormat": "p95 detection reduction", "range": false, "refId": "A"}],
       "title": "BFD EFFECT",
       "type": "stat"
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "fieldConfig": {"defaults": {"color": {"fixedColor": "green", "mode": "fixedColor"}, "decimals": 3, "noValue": "NO EVIDENCE", "unit": "s"}, "overrides": []},
-      "gridPos": {"h": 5, "w": 3, "x": 21, "y": 4},
-      "id": 9,
-      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
-      "targets": [{"editorMode": "code", "expr": "telconet_detection_summary_seconds{profile=\"bfd_100x3\",stat=\"p95\"}", "instant": true, "legendFormat": "BFD 100ms × 3", "range": false, "refId": "A"}],
-      "title": "DETECTION · P95",
-      "type": "stat"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [{"options": {"0": {"color": "red", "text": "GAP"}, "1": {"color": "green", "text": "PASS"}}, "type": "value"}], "noValue": "NO AUDIT", "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []},
-      "gridPos": {"h": 4, "w": 3, "x": 14, "y": 9},
+      "gridPos": {"h": 4, "w": 3, "x": 14, "y": 14},
       "id": 10,
       "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
       "targets": [{"editorMode": "code", "expr": "telconet_n1_candidate_design_pass", "instant": true, "legendFormat": "link", "range": false, "refId": "A"}],
@@ -165,7 +159,7 @@
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [{"options": {"0": {"color": "red", "text": "GAP"}, "1": {"color": "green", "text": "PASS"}}, "type": "value"}], "noValue": "NO AUDIT", "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []},
-      "gridPos": {"h": 4, "w": 3, "x": 17, "y": 9},
+      "gridPos": {"h": 4, "w": 3, "x": 17, "y": 14},
       "id": 11,
       "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
       "targets": [{"editorMode": "code", "expr": "telconet_n1_node_candidate_design_pass", "instant": true, "legendFormat": "node", "range": false, "refId": "A"}],
@@ -175,44 +169,75 @@
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0, "noValue": "NO AUDIT", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 1}]}}, "overrides": []},
-      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 9},
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 14},
       "id": 12,
       "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
-      "targets": [{"editorMode": "code", "expr": "telconet_srlg_scenarios_total{impact=\"outage\"}", "instant": true, "legendFormat": "declared gap", "range": false, "refId": "A"}],
-      "title": "SHARED RISK",
+      "targets": [{"editorMode": "code", "expr": "telconet_srlg_scenarios_total{impact=\"outage\"}", "instant": true, "legendFormat": "outage gap", "range": false, "refId": "A"}],
+      "title": "SRLG AUDIT",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Fault injection is the zero point for the collector monotonic clock.",
+      "fieldConfig": {"defaults": {"color": {"fixedColor": "blue", "mode": "fixed"}, "decimals": 0, "noValue": "—", "unit": "suffix: ms"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 5, "x": 0, "y": 18},
+      "id": 13,
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "vertical", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_live_event_offset_seconds{event=\"blackhole_injected\",profile=\"bfd_100x3\"} * 1000", "instant": true, "legendFormat": "01  BLACKHOLE", "range": false, "refId": "A"}],
+      "title": "FAULT INJECTED",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"fixedColor": "orange", "mode": "fixed"}, "decimals": 0, "noValue": "—", "unit": "suffix: ms"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 5, "x": 5, "y": 18},
+      "id": 14,
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "vertical", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_live_event_offset_seconds{event=\"bfd_down\",profile=\"bfd_100x3\"} * 1000", "instant": true, "legendFormat": "02  BFD DOWN", "range": false, "refId": "A"}],
+      "title": "FAILURE DETECTED",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"fixedColor": "orange", "mode": "fixed"}, "decimals": 0, "noValue": "—", "unit": "suffix: ms"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 5, "x": 10, "y": 18},
+      "id": 15,
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "vertical", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_live_event_offset_seconds{event=\"ospf_neighbor_down\",profile=\"bfd_100x3\"} * 1000", "instant": true, "legendFormat": "03  OSPF DOWN", "range": false, "refId": "A"}],
+      "title": "ADJACENCY LOST",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"fixedColor": "yellow", "mode": "fixed"}, "decimals": 0, "noValue": "—", "unit": "suffix: ms"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 5, "x": 15, "y": 18},
+      "id": 16,
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "vertical", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_live_event_offset_seconds{event=\"route_failover\",profile=\"bfd_100x3\"} * 1000", "instant": true, "legendFormat": "04  METRIC 140", "range": false, "refId": "A"}],
+      "title": "ROUTE RESELECTED",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"fixedColor": "green", "mode": "fixed"}, "decimals": 0, "noValue": "—", "unit": "suffix: ms"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 4, "x": 20, "y": 18},
+      "id": 17,
+      "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "center", "orientation": "vertical", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_live_event_offset_seconds{event=\"data_plane_recovered\",profile=\"bfd_100x3\"} * 1000", "instant": true, "legendFormat": "05  ICMP OK", "range": false, "refId": "A"}],
+      "title": "TRAFFIC RESTORED",
       "type": "stat"
     },
     {
       "datasource": {"type": "datasource", "uid": "grafana"},
-      "gridPos": {"h": 3, "w": 10, "x": 14, "y": 13},
-      "id": 13,
-      "options": {"code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false}, "content": "**Audit boundary**  N-1 proves modeled reachability. It does not prove physical path diversity, capacity headroom, or a production availability target.", "mode": "markdown"},
-      "pluginVersion": "13.1.0",
-      "title": "What the resilience result means",
-      "type": "text"
-    },
-    {
-      "datasource": {"type": "prometheus", "uid": "prometheus"},
-      "description": "Cumulative observed offsets use the collector monotonic clock. The collector's staged completion contract enforces the event sequence; Prometheus only visualizes the resulting metrics.",
-      "fieldConfig": {"defaults": {"color": {"mode": "continuous-GrYlRd"}, "decimals": 0, "noValue": "RUN THE LIVE EXPERIMENT", "unit": "ms"}, "overrides": []},
-      "gridPos": {"h": 7, "w": 24, "x": 0, "y": 16},
-      "id": 14,
-      "options": {"displayMode": "gradient", "minVizHeight": 20, "minVizWidth": 8, "namePlacement": "left", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showUnfilled": true, "sizing": "auto", "valueMode": "color"},
-      "targets": [{"editorMode": "code", "expr": "telconet_live_event_offset_seconds{profile=\"bfd_100x3\"} * 1000", "instant": true, "legendFormat": "{{event}}", "range": false, "refId": "A"}],
-      "title": "Fault → BFD → OSPF → route failover → ICMP recovery",
-      "type": "bargauge"
-    },
-    {
-      "datasource": {"type": "datasource", "uid": "grafana"},
       "gridPos": {"h": 4, "w": 24, "x": 0, "y": 23},
-      "id": 15,
+      "id": 18,
       "options": {
         "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
-        "content": "### Measurement contract\n\n`carrier-up blackhole → BFD Down → OSPF Neighbor Down → route metric 30 → 140 → ICMP recovery`\n\nLive offsets use the collector's monotonic clock with 100 ms polling and are **observed upper bounds**. The sequence is the collector's staged completion contract; it is not inferred from Prometheus samples. Prometheus scrapes every 1 second for visualization only. Results apply to this local containerlab topology and configuration; they are not a production SLA.",
+        "content": "### How to read the evidence\n\n**Measured sequence** \u0060carrier-up blackhole → BFD Down → OSPF Neighbor Down → route metric 30 → 140 → ICMP recovery\u0060  \nLive offsets come from the collector's monotonic clock with 100 ms polling, so they are **observed upper bounds**. Prometheus scrapes every 1 second for visualization only. Results apply to this local containerlab topology and configuration—not to a production SLA.  \n**Audit boundary** N-1 proves modeled reachability. It does not prove physical path diversity, capacity headroom, or an availability target.",
         "mode": "markdown"
       },
       "pluginVersion": "13.1.0",
-      "title": "One baseline · one candidate extension · reproducible evidence",
+      "title": "MEASUREMENT CONTRACT",
       "type": "text"
     }
   ],
@@ -225,6 +250,6 @@
   "timezone": "browser",
   "title": "TelcoNet Sentinel · Network Operations Overview",
   "uid": "telconet-network-overview",
-  "version": 1,
+  "version": 4,
   "weekStart": ""
 }
