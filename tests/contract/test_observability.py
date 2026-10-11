@@ -191,30 +191,50 @@ def test_grafana_provisions_network_operations_overview() -> None:
         dashboard["tags"]
     )
 
-    queries = {
-        target["expr"]
-        for panel in dashboard["panels"]
-        for target in panel.get("targets", [])
-    }
-    assert 'up{job="telconet"}' in queries
-    assert 'telconet_live_bfd_peer_up{profile="bfd_100x3"}' in queries
-    assert 'telconet_live_ospf_neighbor_full{profile="bfd_100x3"}' in queries
-    assert (
+    panels = {panel["id"]: panel for panel in dashboard["panels"]}
+
+    def visible_query(panel_id: int) -> str:
+        targets = panels[panel_id]["targets"]
+        assert len(targets) == 1
+        assert targets[0]["refId"] == "A"
+        assert targets[0]["instant"] is True
+        assert targets[0].get("hide", False) is False
+        return str(targets[0]["expr"])
+
+    assert visible_query(2) == 'up{job="telconet"}'
+    assert visible_query(3) == 'telconet_live_run_complete{profile="bfd_100x3"}'
+    assert visible_query(4) == (
         'telconet_live_event_offset_seconds{event="data_plane_recovered",'
         'profile="bfd_100x3"} * 1000'
-    ) in queries
-    assert 'telconet_detection_summary_seconds{profile="ospf_only",stat="p95"}' in queries
-    assert 'telconet_detection_summary_seconds{profile="bfd_100x3",stat="p95"}' in queries
-    assert "telconet_n1_candidate_design_pass" in queries
-    assert "telconet_n1_node_candidate_design_pass" in queries
-    assert 'telconet_srlg_scenarios_total{impact="outage"}' in queries
-    assert 'telconet_live_event_offset_seconds{profile="bfd_100x3"} * 1000' in queries
+    )
+    assert visible_query(7) == (
+        'telconet_detection_summary_seconds{profile="ospf_only",stat="p95"}'
+    )
+    assert visible_query(8) == (
+        'telconet_detection_summary_seconds{profile="bfd_100x3",stat="p95"}'
+    )
+    assert visible_query(10) == "telconet_n1_candidate_design_pass"
+    assert visible_query(11) == "telconet_n1_node_candidate_design_pass"
+    assert visible_query(12) == 'telconet_srlg_scenarios_total{impact="outage"}'
 
-    topology_panel = next(panel for panel in dashboard["panels"] if panel["id"] == 6)
+    event_panels = {
+        13: "blackhole_injected",
+        14: "bfd_down",
+        15: "ospf_neighbor_down",
+        16: "route_failover",
+        17: "data_plane_recovered",
+    }
+    for panel_id, event in event_panels.items():
+        assert visible_query(panel_id) == (
+            f'telconet_live_event_offset_seconds{{event="{event}",'
+            'profile="bfd_100x3"} * 1000'
+        )
+
+    topology_panel = panels[6]
     topology = topology_panel["options"]["content"]
     assert "OSPF Area 0" in topology
-    assert "Primary cost 10" in topology
-    assert "Backup cost 100" in topology
+    assert "primary" in topology.casefold() and "cost 10" in topology
+    assert "backup" in topology.casefold() and "cost 100" in topology
     assert "metric 30" in topology
     assert "metric 140" in topology
 
