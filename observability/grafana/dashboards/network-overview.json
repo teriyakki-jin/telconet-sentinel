@@ -229,11 +229,11 @@
     },
     {
       "datasource": {"type": "datasource", "uid": "grafana"},
-      "gridPos": {"h": 4, "w": 24, "x": 0, "y": 23},
+      "gridPos": {"h": 5, "w": 24, "x": 0, "y": 23},
       "id": 18,
       "options": {
         "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
-        "content": "### How to read the evidence\n\n**Measured sequence** \u0060carrier-up blackhole → BFD Down → OSPF Neighbor Down → route metric 30 → 140 → ICMP recovery\u0060  \nLive offsets come from the collector's monotonic clock with 100 ms polling, so they are **observed upper bounds**. Prometheus scrapes every 1 second for visualization only. Results apply to this local containerlab topology and configuration—not to a production SLA.  \n**Audit boundary** N-1 proves modeled reachability. It does not prove physical path diversity, capacity headroom, or an availability target.",
+        "content": "### How to read the evidence\n\n**Collector completion contract** \u0060carrier-up blackhole → BFD Down → OSPF Neighbor Down → route metric 30 → 140 → ICMP recovery\u0060  \nLive offsets come from the collector's monotonic clock with 100 ms polling, so they are **observed upper bounds**. Equal offsets mean the conditions were first observed in the same polling sample; tile order does not resolve inter-stage timing. Prometheus scrapes every 1 second for visualization only. Results apply to this local containerlab topology and configuration—not to a production SLA.  \n**Audit boundary** N-1 proves modeled reachability. It does not prove physical path diversity, capacity headroom, or an availability target.",
         "mode": "markdown"
       },
       "pluginVersion": "13.1.0",
@@ -250,6 +250,6 @@
   "timezone": "browser",
   "title": "TelcoNet Sentinel · Network Operations Overview",
   "uid": "telconet-network-overview",
-  "version": 4,
+  "version": 6,
   "weekStart": ""
 }
