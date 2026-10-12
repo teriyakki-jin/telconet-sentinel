@@ -11,6 +11,10 @@ FRRouting 라우터 6대를 containerlab으로 구성하고, 링크 carrier는 �
 
 > 이 저장소는 개인 학습용 로컬 시뮬레이션이다. 실제 통신사 망 정보나 운영 데이터는 사용하지 않았으며, 모든 수치는 이 랩의 토폴로지·설정·측정 방식에서 얻은 관측값이다.
 
+![OSPF 경로 설계, BFD 탐지, N-1 감사와 장애 복구 타임라인을 묶은 Network Operations Overview](docs/assets/grafana-network-overview.png)
+
+이 화면은 OSPF 경로 정책, OSPF-only/BFD 반복 실험, 링크·노드 N-1, SRLG와 최신 수렴 run을 한곳에 모은 요약 화면이다. 대시보드는 로컬에서 마지막으로 실행한 run을 표시하므로, 캡처의 `1,142ms`와 아래 CI run의 `1,080ms`는 서로 다른 실행에서 얻은 관측 상한이다. 여러 단계에 같은 시간이 표시되면 한 번의 100ms polling 표본에서 함께 처음 관측됐다는 뜻이며, 카드 순서는 실제 이벤트 사이의 시차가 아니라 수집기의 단계별 완료 계약을 나타낸다.
+
 ## 무엇을 확인했나
 
 이 프로젝트는 한 가지 질문에서 시작했다.
@@ -23,7 +27,7 @@ FRRouting 라우터 6대를 containerlab으로 구성하고, 링크 carrier는 �
 |---|---|---|
 | 1. OSPF 경로 설계 | cost로 정상 경로와 우회 경로를 고정할 수 있는가 | 정상 cost `30`, 우회 cost `140` |
 | 2. 장애 탐지 | carrier-up 블랙홀에서 OSPF와 BFD의 탐지 차이는 얼마인가 | BFD p95 탐지 상한 `519ms`, OSPF `4,058ms` |
-| 3. 수렴 과정 | 장애부터 data plane 복구까지 어떤 순서로 상태가 바뀌는가 | BFD → OSPF → RIB → ICMP 순서 확인 |
+| 3. 수렴 과정 | 장애부터 data plane 복구까지 어떤 완료 조건을 확인해야 하는가 | BFD·OSPF·RIB·ICMP 조건을 단계별로 검증 |
 | 4. 설계 복원력 | 모든 단일 링크·전송 노드 장애를 우회할 수 있는가 | 서비스 이중화 후보가 링크·노드 N-1 통과 |
 | 5. 공유 위험 | N-1을 통과한 설계도 복합 장애에서 안전한가 | `service-entry` SRLG에서 outage 확인 |
 
