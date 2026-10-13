@@ -14,6 +14,9 @@ dependencies = [
   "uvicorn>=0.30,<1",
 ]
 
+[project.scripts]
+telconet-report = "telconet_sentinel.report:main"
+
 [project.optional-dependencies]
 dev = [
   "httpx>=0.27,<1",
