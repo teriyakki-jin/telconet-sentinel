@@ -164,14 +164,23 @@ README의 숫자를 대시보드에서 수기로 옮기지 않았다. 원시 로
   → p50·p95·max 계산
   → topology·FRR 설정 SHA-256 검증
   → evidence/bfd-repeated-trials.json
+  → docs/EXPERIMENT_REPORT.md
   → FastAPI /metrics
   → Prometheus · Grafana
 ```
 
 - [40개 원시 로그](evidence/repeated)
 - [반복 실험 JSON](evidence/bfd-repeated-trials.json)
+- [자동 생성된 실험 보고서](docs/EXPERIMENT_REPORT.md)
 - [실험 자동화 스크립트](scenarios/bfd_repeated_trials_lab.sh)
 - [집계 구현](src/telconet_sentinel/repeated_trials.py)
+- [보고서 생성기](src/telconet_sentinel/report.py)
+
+보고서는 단회 비교, 반복 실험, SRLG 감사 evidence의 SHA-256과 configuration fingerprint를 함께 기록한다. 생성 시 단회·반복 결과는 42개 원시 로그에서 다시 계산하고, fingerprint는 현재 랩 설정과 대조하며, SRLG 결과는 versioned intent와 failure-domain 선언에서 다시 계산한다. 어느 한 단계라도 맞지 않으면 생성을 중단하고, 입력 evidence가 바뀌었는데 보고서를 다시 만들지 않아도 integration test가 실패한다.
+
+```bash
+telconet-report --output docs/EXPERIMENT_REPORT.md
+```
 
 ## 프로젝트 구조
 
@@ -185,6 +194,7 @@ flowchart LR
     FAULT --> OBSERVE["BFD · OSPF · RIB · ICMP"]
     OBSERVE --> RAW["timestamped raw logs"]
     RAW --> EVIDENCE["recalculated evidence"]
+    EVIDENCE --> REPORT["traceable experiment report"]
     EVIDENCE --> API["FastAPI · SQLite · /metrics"]
     AUDIT --> API
     API --> PROM["Prometheus"]
@@ -199,6 +209,7 @@ flowchart LR
 | `failure_domain.py` | 선언된 SRLG 검증과 복합 장애 계산 |
 | `resilience.py` | 링크·노드 N-1 결과를 API와 Prometheus 형식으로 변환 |
 | convergence collector | FRR JSON과 ICMP를 monotonic clock으로 수집 |
+| `report.py` | 측정 evidence와 모델 감사를 검증해 재생성 가능한 Markdown 보고서 작성 |
 
 링크·노드·SRLG 분석은 같은 경로 계산 코드를 사용한다. API는 Docker socket이나 container 명령에 접근하지 않고, 수집기가 전송한 typed event와 계산된 결과만 저장한다. 자세한 경계는 [시스템 아키텍처 문서](docs/ARCHITECTURE.md)에서 설명한다.
 
@@ -291,6 +302,7 @@ telconet-sentinel/
 - [SRLG·Failure Domain 설계 감사](docs/SRLG_DESIGN_AUDIT.md)
 - [Intent schema와 fault model](docs/INTENT_MODEL.md)
 - [시스템 아키텍처와 신뢰 경계](docs/ARCHITECTURE.md)
+- [재생성 가능한 실험 보고서](docs/EXPERIMENT_REPORT.md)
 - [링크 장애 실험 Runbook](docs/RUNBOOK_LINK_FAILURE.md)
 - [수렴 상태와 알림 Runbook](docs/RUNBOOK_ALERTS.md)
 
