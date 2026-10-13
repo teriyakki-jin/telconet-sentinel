@@ -24,7 +24,7 @@ FRRouting 라우터 6대를 containerlab으로 구성하고, 링크 carrier는 �
 | 운영 가시성 | FastAPI, Prometheus metrics·alert rule, Grafana dashboard |
 | 재현성 | 42개 원시 로그 재계산, 설정 fingerprint, 자동 보고서, CI E2E |
 
-처음 보는 경우에는 [핵심 결과](#핵심-결과) → [OSPF 망 설계](#ospf-망-설계) → [실험 방법](#실험-방법) 순서로 읽으면 된다. 수치의 출처와 해석 범위는 [자동 생성된 실험 보고서](docs/EXPERIMENT_REPORT.md)에서 별도로 확인할 수 있다.
+처음 보는 경우에는 [핵심 결과](#핵심-결과) → [OSPF 망 설계](#ospf-망-설계) → [실험 방법](#실험-방법) 순서로 읽으면 된다. 결과에 대한 기술적 해석은 [분석 결과 보고서](docs/ANALYSIS_REPORT.md), 수치의 출처와 무결성은 [자동 생성 실험 보고서](docs/EXPERIMENT_REPORT.md)에서 확인할 수 있다.
 
 ![OSPF 경로 설계, BFD 탐지, N-1 감사와 장애 복구 타임라인을 묶은 Network Operations Overview](docs/assets/grafana-network-overview.png)
 
@@ -318,6 +318,7 @@ telconet-sentinel/
 - [SRLG·Failure Domain 설계 감사](docs/SRLG_DESIGN_AUDIT.md)
 - [Intent schema와 fault model](docs/INTENT_MODEL.md)
 - [시스템 아키텍처와 신뢰 경계](docs/ARCHITECTURE.md)
+- [실험 분석 결과 보고서](docs/ANALYSIS_REPORT.md)
 - [재생성 가능한 실험 보고서](docs/EXPERIMENT_REPORT.md)
 - [링크 장애 실험 Runbook](docs/RUNBOOK_LINK_FAILURE.md)
 - [수렴 상태와 알림 Runbook](docs/RUNBOOK_ALERTS.md)
