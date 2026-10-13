@@ -1,15 +1,30 @@
 # TelcoNet Sentinel
 
+> OSPF 경로 설계부터 BFD 장애 탐지, N-1·SRLG 감사, 운영 대시보드까지 하나의 재현 가능한 랩으로 연결한 네트워크 복원력 프로젝트
+
 [![validate](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/validate.yml/badge.svg)](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/validate.yml)
 [![containerlab E2E](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/lab-e2e.yml/badge.svg)](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/lab-e2e.yml)
 [![CodeQL](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/codeql.yml/badge.svg)](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.scorecard.dev%2Fprojects%2Fgithub.com%2Fteriyakki-jin%2Ftelconet-sentinel&query=%24.score&label=OpenSSF%20Scorecard&cacheSeconds=300)](https://scorecard.dev/viewer/?uri=github.com/teriyakki-jin/telconet-sentinel)
 
-이 프로젝트는 OSPF와 BFD 기능을 나열한 실습 모음이 아니라, 하나의 Access–Aggregation–Core 망을 기준으로 장애 탐지와 경로 전환, 서비스 복구, 이중화 설계의 한계를 차례로 검증한 네트워크 복원력 랩이다.
+이 프로젝트는 OSPF와 BFD 명령어를 따라 해본 기록이 아니다. Access–Aggregation–Core 망을 직접 설계하고, 장애 탐지부터 우회 경로 수렴과 서비스 복구까지 실제 FRR 환경에서 확인한 개인 프로젝트다.
 
-FRRouting 라우터 6대를 containerlab으로 구성하고, 링크 carrier는 살아 있지만 패킷만 사라지는 원격 블랙홀을 주입했다. OSPF 단독 구성과 BFD 연동 구성을 반복 비교했으며, 이후 링크·노드 N-1과 SRLG 분석으로 범위를 넓혔다. 각 결과는 원시 로그에서 다시 계산할 수 있고 Prometheus와 Grafana에서 확인할 수 있다.
+FRRouting 라우터 6대를 containerlab으로 구성하고, 링크 carrier는 살아 있지만 패킷만 사라지는 원격 블랙홀을 주입했다. OSPF 단독 구성과 BFD 연동 구성을 반복 비교한 뒤 링크·노드 N-1과 SRLG 분석으로 범위를 넓혔다. 결과는 원시 로그에서 다시 계산하며 Prometheus와 Grafana에서 같은 상태를 확인할 수 있다.
 
 > 이 저장소는 개인 학습용 로컬 시뮬레이션이다. 실제 통신사 망 정보나 운영 데이터는 사용하지 않았으며, 모든 수치는 이 랩의 토폴로지·설정·측정 방식에서 얻은 관측값이다.
+
+## 한눈에 보기
+
+| 구분 | 구현한 내용 |
+|---|---|
+| 네트워크 | FRR 6대, Single Area 0, `/31` transit, 명시적 primary/backup cost |
+| 장애 실험 | carrier-up 원격 블랙홀 주입, OSPF-only/BFD 프로필 자동 반복 |
+| 측정 | BFD·OSPF·RIB·ICMP 완료 조건, monotonic/epoch timestamp 원시 로그 |
+| 복원력 감사 | 링크 N-1, 노드 N-1, 선언형 SRLG 복합 장애 분석 |
+| 운영 가시성 | FastAPI, Prometheus metrics·alert rule, Grafana dashboard |
+| 재현성 | 42개 원시 로그 재계산, 설정 fingerprint, 자동 보고서, CI E2E |
+
+처음 보는 경우에는 [핵심 결과](#핵심-결과) → [OSPF 망 설계](#ospf-망-설계) → [실험 방법](#실험-방법) 순서로 읽으면 된다. 수치의 출처와 해석 범위는 [자동 생성된 실험 보고서](docs/EXPERIMENT_REPORT.md)에서 별도로 확인할 수 있다.
 
 ![OSPF 경로 설계, BFD 탐지, N-1 감사와 장애 복구 타임라인을 묶은 Network Operations Overview](docs/assets/grafana-network-overview.png)
 
@@ -159,7 +174,7 @@ OSPF cost  : 100 + 10 + 20 + 10 = 140
 README의 숫자를 대시보드에서 수기로 옮기지 않았다. 원시 로그를 다시 파싱해 JSON evidence를 만들고, 테스트에서 같은 값을 재계산한다.
 
 ```text
-40개 원시 로그
+단회 2개 + 반복 40개 원시 로그
   → timestamp·ping sequence·TTL·route metric 파싱
   → p50·p95·max 계산
   → topology·FRR 설정 SHA-256 검증
@@ -196,6 +211,7 @@ flowchart LR
     RAW --> EVIDENCE["recalculated evidence"]
     EVIDENCE --> REPORT["traceable experiment report"]
     EVIDENCE --> API["FastAPI · SQLite · /metrics"]
+    AUDIT --> REPORT
     AUDIT --> API
     API --> PROM["Prometheus"]
     PROM --> GRAFANA["Grafana"]
@@ -269,7 +285,7 @@ bash scenarios/dual_homing_e2e.sh
 | Unit | intent 검증, fault engine, path cost, OSPF/BFD 파싱, N-1·SRLG 계산, SQLite 보존성 |
 | API | 제한된 입력 모델, 감사 결과, event 조회, 승인 상태, Prometheus metrics |
 | Contract | intent–containerlab 링크, FRR 설정, dashboard, alert rule, E2E workflow 일치 |
-| Integration | 원시 로그에서 evidence 재계산, configuration fingerprint 일치 |
+| Integration | 원시 로그에서 evidence 재계산, configuration fingerprint, 보고서 freshness·provenance |
 | Lab E2E | 실제 FRR blackhole 수렴, 서비스 이중화, core1 격리, ICMP 복구 |
 | Static·Security | Ruff, strict mypy, Bash syntax, CodeQL |
 | CI | branch coverage 80% gate, promtool rule test, containerlab E2E |
