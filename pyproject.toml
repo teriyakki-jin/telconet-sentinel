@@ -16,6 +16,8 @@ dependencies = [
 
 [project.scripts]
 telconet-report = "telconet_sentinel.report:main"
+telconet-runtime-audit = "telconet_sentinel.runtime_conformance:main"
+telconet-runtime-snapshot = "telconet_sentinel.runtime_conformance:snapshot_main"
 
 [project.optional-dependencies]
 dev = [

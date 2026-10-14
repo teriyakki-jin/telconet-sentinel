@@ -17,6 +17,9 @@ access_1="clab-telconet-sentinel-access1"
 agg_1="clab-telconet-sentinel-agg1"
 
 mkdir -p "${artifact_dir}"
+rm -f \
+  "${artifact_dir}/runtime-snapshot.json" \
+  "${artifact_dir}/runtime-conformance.json"
 
 if command -v uv >/dev/null 2>&1; then
   python_command=(uv run python)
@@ -139,6 +142,23 @@ docker exec "${access_1}" vtysh -c "show bfd peer 10.0.1.1 json" \
   >"${artifact_dir}/bfd-baseline.json" 2>"${artifact_dir}/bfd-baseline.err"
 docker exec "${access_1}" vtysh -c "show ip ospf neighbor json" \
   >"${artifact_dir}/ospf-baseline.json" 2>"${artifact_dir}/ospf-baseline.err"
+docker exec "${access_1}" vtysh -c "show ip route 10.20.0.0/24 json" \
+  >"${artifact_dir}/route-baseline.json" 2>"${artifact_dir}/route-baseline.err"
+
+"${python_command[@]}" -m telconet_sentinel.runtime_snapshot \
+  --router access1 \
+  --ospf "${artifact_dir}/ospf-baseline.json" \
+  --route "${artifact_dir}/route-baseline.json" \
+  --bfd "${artifact_dir}/bfd-baseline.json" \
+  --output "${artifact_dir}/runtime-snapshot.json"
+
+"${python_command[@]}" -m telconet_sentinel.runtime_conformance \
+  --intent "${project_root}/lab/intent.yml" \
+  --expectation "${project_root}/lab/runtime-expectations.yml" \
+  --snapshot "${artifact_dir}/runtime-snapshot.json" \
+  --project-root "${project_root}" \
+  --output "${artifact_dir}/runtime-conformance.json"
+echo "RUNTIME_CONFORMANCE status=pass"
 
 if [[ -z "${TELCONET_API_URL:-}" ]]; then
   "${python_command[@]}" -m uvicorn telconet_sentinel.main:app \

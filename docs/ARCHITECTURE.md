@@ -8,6 +8,10 @@ TelcoNet Sentinel separates the network lab, analysis logic, and recovery execut
 flowchart LR
     CLAB["containerlab · FRR routers"] --> EVENT["link event"]
     EVENT --> API["FastAPI incident service"]
+    CLAB --> SNAPSHOT["FRR runtime snapshot"]
+    INTENT --> PREFLIGHT["intent-runtime conformance"]
+    SNAPSHOT --> PREFLIGHT
+    PREFLIGHT -->|PASS| EVENT
     CLAB --> COLLECTOR["host live collector · 100ms poll"]
     COLLECTOR -->|"typed convergence events"| API
     API --> STORE[("SQLite · bounded recent runs")]
@@ -34,13 +38,14 @@ flowchart LR
 
 ## Analysis boundaries
 
-The analysis path has five explicit layers:
+The analysis path has six explicit layers:
 
 1. `intent.py` rejects malformed or ambiguous YAML before domain objects exist.
 2. `Topology` owns graph identity and weighted path calculation, including sets of excluded links and nodes.
 3. `fault.py` declares immutable link, node, and composite fault scenarios.
 4. `audit.py` owns the single reachability and cost-comparison algorithm. `resilience.py` only adapts its results to the established link/node API and metric contracts.
 5. `failure_domain.py` validates declared shared-risk groups and adapts their composite faults, access-path costs, API output, and bounded-label metrics.
+6. `runtime_conformance.py` compares a pre-fault FRR snapshot with versioned intent and experiment expectations. A failed check prevents the live fault experiment from starting.
 
 `lab/designs.yml` declares which intent is the historical baseline and which is a candidate. This sidecar keeps the relationship explicit without changing `lab/intent.yml`, whose bytes are part of the checked-in 40-trial evidence fingerprint.
 
@@ -52,6 +57,8 @@ The analysis path has five explicit layers:
 - The Phase 1 approval endpoint has no operator identity; it changes local typed state only.
 - The local runbook owns privileged lab commands and is not invoked by the API.
 - The host collector owns `docker exec`, reads FRR JSON and continuous ICMP, and sends only typed event fields to the API.
+- The E2E runner captures OSPF neighbor, RIB/FIB route, and BFD JSON before fault injection. The conformance process reads only bounded local files and emits per-check expected/actual evidence.
+- Runtime conformance is a fail-closed precondition for the live experiment; it does not modify router state.
 - The API container does not mount the Docker socket.
 - Live event offsets use a monotonic clock and represent polling-based observation upper bounds.
 - The API writes only validated typed convergence fields to a local SQLite volume; no SQL or file path is accepted from an API request.
@@ -87,4 +94,5 @@ All router links participate in OSPF area 0. Interface costs create explicit pri
 - Phase 5a: completed deterministic N-1 single-link audit and Grafana scenario matrix.
 - Phase 5b: completed service dual-homing design and transport-node failure audit.
 - Phase 5c: completed strict shared-risk failure-domain modeling, cost-aware composite audit, API, metrics, and Grafana matrix.
+- Phase 6a: completed fail-closed intent-runtime preflight for the live convergence experiment.
 - Foundation 1: completed strict versioned intent/catalog validation and a common multi-component fault audit engine.
