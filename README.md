@@ -19,6 +19,7 @@ FRRouting 라우터 6대를 containerlab으로 구성하고, 링크 carrier는 �
 |---|---|
 | 네트워크 | FRR 6대, Single Area 0, `/31` transit, 명시적 primary/backup cost |
 | 장애 실험 | carrier-up 원격 블랙홀 주입, OSPF-only/BFD 프로필 자동 반복 |
+| 실험 preflight | OSPF neighbor·RIB/FIB·BFD timer를 intent와 비교하고 drift 시 장애 주입 차단 |
 | 측정 | BFD·OSPF·RIB·ICMP 완료 조건, monotonic/epoch timestamp 원시 로그 |
 | 복원력 감사 | 링크 N-1, 노드 N-1, 선언형 SRLG 복합 장애 분석 |
 | 운영 가시성 | FastAPI, Prometheus metrics·alert rule, Grafana dashboard |
@@ -40,11 +41,12 @@ FRRouting 라우터 6대를 containerlab으로 구성하고, 링크 carrier는 �
 
 | 단계 | 확인한 내용 | 결과 |
 |---|---|---|
-| 1. OSPF 경로 설계 | cost로 정상 경로와 우회 경로를 고정할 수 있는가 | 정상 cost `30`, 우회 cost `140` |
-| 2. 장애 탐지 | carrier-up 블랙홀에서 OSPF와 BFD의 탐지 차이는 얼마인가 | BFD p95 탐지 상한 `519ms`, OSPF `4,058ms` |
-| 3. 수렴 과정 | 장애부터 data plane 복구까지 어떤 완료 조건을 확인해야 하는가 | BFD·OSPF·RIB·ICMP 조건을 단계별로 검증 |
-| 4. 설계 복원력 | 모든 단일 링크·전송 노드 장애를 우회할 수 있는가 | 서비스 이중화 후보가 링크·노드 N-1 통과 |
-| 5. 공유 위험 | N-1을 통과한 설계도 복합 장애에서 안전한가 | `service-entry` SRLG에서 outage 확인 |
+| 1. 런타임 정합성 | 실제 FRR 상태가 설계와 일치하는가 | 13개 preflight 조건 통과 시에만 장애 주입 |
+| 2. OSPF 경로 설계 | cost로 정상 경로와 우회 경로를 고정할 수 있는가 | 정상 cost `30`, 우회 cost `140` |
+| 3. 장애 탐지 | carrier-up 블랙홀에서 OSPF와 BFD의 탐지 차이는 얼마인가 | BFD p95 탐지 상한 `519ms`, OSPF `4,058ms` |
+| 4. 수렴 과정 | 장애부터 data plane 복구까지 어떤 완료 조건을 확인해야 하는가 | BFD·OSPF·RIB·ICMP 조건을 단계별로 검증 |
+| 5. 설계 복원력 | 모든 단일 링크·전송 노드 장애를 우회할 수 있는가 | 서비스 이중화 후보가 링크·노드 N-1 통과 |
+| 6. 공유 위험 | N-1을 통과한 설계도 복합 장애에서 안전한가 | `service-entry` SRLG에서 outage 확인 |
 
 즉, 이 프로젝트의 핵심은 “BFD가 빠르다”에서 끝나지 않는다. 빠른 탐지, 올바른 경로 설계, 실제 도달성, 공유 위험을 같은 실험 체계 안에서 연결했다.
 
@@ -205,7 +207,10 @@ telconet-report --output docs/EXPERIMENT_REPORT.md
 flowchart LR
     INTENT["versioned intent YAML"] --> LAB["containerlab · FRR"]
     INTENT --> AUDIT["link · node · SRLG audit"]
-    LAB --> FAULT["carrier-up blackhole"]
+    INTENT --> PREFLIGHT["intent-runtime conformance"]
+    LAB --> SNAPSHOT["OSPF · RIB/FIB · BFD snapshot"]
+    SNAPSHOT --> PREFLIGHT
+    PREFLIGHT -->|PASS| FAULT["carrier-up blackhole"]
     FAULT --> OBSERVE["BFD · OSPF · RIB · ICMP"]
     OBSERVE --> RAW["timestamped raw logs"]
     RAW --> EVIDENCE["recalculated evidence"]
@@ -225,6 +230,7 @@ flowchart LR
 | `failure_domain.py` | 선언된 SRLG 검증과 복합 장애 계산 |
 | `resilience.py` | 링크·노드 N-1 결과를 API와 Prometheus 형식으로 변환 |
 | convergence collector | FRR JSON과 ICMP를 monotonic clock으로 수집 |
+| `runtime_conformance.py` | 장애 전 FRR snapshot을 intent·실험 profile과 비교하고 실행 여부 판정 |
 | `report.py` | 측정 evidence와 모델 감사를 검증해 재생성 가능한 Markdown 보고서 작성 |
 
 링크·노드·SRLG 분석은 같은 경로 계산 코드를 사용한다. API는 Docker socket이나 container 명령에 접근하지 않고, 수집기가 전송한 typed event와 계산된 결과만 저장한다. 자세한 경계는 [시스템 아키텍처 문서](docs/ARCHITECTURE.md)에서 설명한다.
@@ -278,6 +284,8 @@ bash scenarios/dual_homing_e2e.sh
 
 반복 횟수는 `TELCONET_TRIALS`로 20~30회 범위에서 바꿀 수 있다. Live E2E는 랩 배포, 장애 주입, 수렴 수집, evidence 검증과 정리까지 수행한다.
 
+Live E2E는 장애를 주입하기 전에 `runtime-conformance.json`을 생성한다. OSPF neighbor, service route, BFD profile 중 하나라도 expectation과 다르면 non-zero로 종료한다. 검사 계약과 evidence 형식은 [Intent–Runtime 정합성 문서](docs/RUNTIME_CONFORMANCE.md)에 정리했다.
+
 ## 검증
 
 | 계층 | 확인하는 것 |
@@ -285,7 +293,7 @@ bash scenarios/dual_homing_e2e.sh
 | Unit | intent 검증, fault engine, path cost, OSPF/BFD 파싱, N-1·SRLG 계산, SQLite 보존성 |
 | API | 제한된 입력 모델, 감사 결과, event 조회, 승인 상태, Prometheus metrics |
 | Contract | intent–containerlab 링크, FRR 설정, dashboard, alert rule, E2E workflow 일치 |
-| Integration | 원시 로그에서 evidence 재계산, configuration fingerprint, 보고서 freshness·provenance |
+| Integration | 원시 로그 재계산, runtime conformance, configuration fingerprint, 보고서 freshness·provenance |
 | Lab E2E | 실제 FRR blackhole 수렴, 서비스 이중화, core1 격리, ICMP 복구 |
 | Static·Security | Ruff, strict mypy, Bash syntax, CodeQL |
 | CI | branch coverage 80% gate, promtool rule test, containerlab E2E |
@@ -318,6 +326,7 @@ telconet-sentinel/
 - [SRLG·Failure Domain 설계 감사](docs/SRLG_DESIGN_AUDIT.md)
 - [Intent schema와 fault model](docs/INTENT_MODEL.md)
 - [시스템 아키텍처와 신뢰 경계](docs/ARCHITECTURE.md)
+- [Intent–Runtime 정합성 검사](docs/RUNTIME_CONFORMANCE.md)
 - [실험 분석 결과 보고서](docs/ANALYSIS_REPORT.md)
 - [재생성 가능한 실험 보고서](docs/EXPERIMENT_REPORT.md)
 - [링크 장애 실험 Runbook](docs/RUNBOOK_LINK_FAILURE.md)

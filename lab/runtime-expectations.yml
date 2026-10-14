@@ -1,0 +1,18 @@
+version: 1
+router: access1
+service_node: service-host
+route_prefix: 10.20.0.0/24
+route_next_hop: 10.0.1.1
+route_interface: eth1
+ospf_neighbors:
+  - router_id: 10.255.0.21
+    interface: eth1
+  - router_id: 10.255.0.22
+    interface: eth2
+bfd:
+  peer: 10.0.1.1
+  interface: eth1
+  receive_interval_ms: 100
+  transmit_interval_ms: 100
+  detect_multiplier: 3
+  detection_timeout_ms: 300
