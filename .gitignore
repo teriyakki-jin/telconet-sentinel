@@ -15,3 +15,4 @@ evidence/*.json
 !evidence/bfd-comparison.json
 !evidence/bfd-repeated-trials.json
 !evidence/failure-domain-audit.json
+!evidence/manifest.json

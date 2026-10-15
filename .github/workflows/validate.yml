@@ -22,6 +22,7 @@ jobs:
       - run: uv run pytest -q --cov=telconet_sentinel --cov-branch --cov-fail-under=80
       - run: uv run ruff check .
       - run: uv run mypy src
+      - run: uv run telconet-evidence verify --project-root .
       - run: bash -n scenarios/*.sh
       - name: Validate Prometheus configuration and rules
         run: |

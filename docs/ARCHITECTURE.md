@@ -30,6 +30,8 @@ flowchart LR
     RUNBOOK --> CLAB
     CLAB --> RAW["timestamped experiment logs"]
     RAW --> EVIDENCE["recalculated JSON evidence"]
+    EVIDENCE --> MANIFEST["59-artifact evidence manifest"]
+    MANIFEST --> ATTEST["CI archive provenance attestation"]
     EVIDENCE --> METRICS["FastAPI /metrics"]
     METRICS --> PROM["Prometheus scrape · 1s"]
     PROM --> RULES["simulation alert rules · 20s hold"]
@@ -59,6 +61,9 @@ The analysis path has six explicit layers:
 - The host collector owns `docker exec`, reads FRR JSON and continuous ICMP, and sends only typed event fields to the API.
 - The E2E runner captures OSPF neighbor, RIB/FIB route, and BFD JSON before fault injection. The conformance process reads only bounded local files and emits per-check expected/actual evidence.
 - Runtime conformance is a fail-closed precondition for the live experiment; it does not modify router state.
+- The checked-in evidence manifest binds every report input and output after semantic recalculation; bounded reads and an exact inventory prevent unreviewed files from entering the bundle.
+- The E2E job has read-only repository permissions. A separate main-only job receives OIDC and attestation permissions after downloading the completed, size-bounded regular-file archive.
+- CI preloads FRR and Alpine by immutable multi-platform digest before containerlab resolves the historical topology image tags.
 - The API container does not mount the Docker socket.
 - Live event offsets use a monotonic clock and represent polling-based observation upper bounds.
 - The API writes only validated typed convergence fields to a local SQLite volume; no SQL or file path is accepted from an API request.
