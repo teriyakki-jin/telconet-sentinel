@@ -35,6 +35,8 @@ jobs:
   lab-e2e:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    permissions:
+      contents: read
     env:
       CLAB_VERSION: "0.79.0"
       CLAB_SHA256: "f90d36d58bb6c4afd3b3a4dca006b81594c6d16f7a04be0184b03f44291085a2"
@@ -68,11 +70,42 @@ jobs:
           sudo install -m 0755 /tmp/containerlab /usr/local/bin/containerlab
           containerlab version
 
+      - name: Load pinned lab images
+        run: |
+          set -euo pipefail
+          docker pull quay.io/frrouting/frr@sha256:65e5967b922572c0565d968388fb06af69d7e9b3b3eea40ad7e3810687667f68
+          docker tag \
+            quay.io/frrouting/frr@sha256:65e5967b922572c0565d968388fb06af69d7e9b3b3eea40ad7e3810687667f68 \
+            quay.io/frrouting/frr:10.7.0
+          docker pull alpine@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8
+          docker tag \
+            alpine@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8 \
+            alpine:3.22
+
       - name: Run live convergence E2E
         run: bash scenarios/live_convergence_e2e.sh
 
       - name: Run service dual-homing E2E
         run: bash scenarios/dual_homing_e2e.sh
+
+      - name: Package live evidence
+        run: |
+          set -euo pipefail
+          unsafe_path="$(find artifacts/live-convergence artifacts/dual-homing \
+            \( -type l -o \( ! -type f ! -type d \) \) -print -quit)"
+          if [[ -n "${unsafe_path}" ]]; then
+            echo "refusing to archive unsafe path: ${unsafe_path}" >&2
+            exit 1
+          fi
+          total_bytes="$(find artifacts/live-convergence artifacts/dual-homing \
+            -type f -printf '%s\n' | awk '{ total += $1 } END { print total + 0 }')"
+          if (( total_bytes > 52428800 )); then
+            echo "live evidence exceeds 52428800 bytes" >&2
+            exit 1
+          fi
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 \
+            --numeric-owner -cf - artifacts/live-convergence artifacts/dual-homing \
+            | gzip -n > artifacts/telconet-live-evidence.tar.gz
 
       - name: Upload lab evidence
         if: always()
@@ -82,5 +115,27 @@ jobs:
           path: |
             artifacts/live-convergence
             artifacts/dual-homing
+            artifacts/telconet-live-evidence.tar.gz
           if-no-files-found: warn
           retention-days: 14
+
+  attest-live-evidence:
+    needs: lab-e2e
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      attestations: write
+      artifact-metadata: write
+      contents: read
+      id-token: write
+    steps:
+      - name: Download live evidence
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          name: live-convergence-evidence
+          path: artifacts
+
+      - name: Attest live evidence provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: artifacts/telconet-live-evidence.tar.gz

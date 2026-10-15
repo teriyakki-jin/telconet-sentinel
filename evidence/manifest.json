@@ -1,0 +1,363 @@
+{
+  "artifact_count": 59,
+  "artifacts": [
+    {
+      "path": "docs/EXPERIMENT_REPORT.md",
+      "role": "generated_report",
+      "sha256": "bba23e1d321476e136cbd975934d7c7aec2dad52113451b0dda9ccf4dcaefc87",
+      "size_bytes": 3382
+    },
+    {
+      "path": "evidence/bfd-comparison.json",
+      "role": "derived_evidence",
+      "sha256": "ff1b914ef3e6c423bdd3f6e912e4dc8431d005f193cb65d30c027c11a187e986",
+      "size_bytes": 2705
+    },
+    {
+      "path": "evidence/bfd-repeated-trials.json",
+      "role": "derived_evidence",
+      "sha256": "cd41656510f71968696ffa7af8bce6a75806be96b41c34739d4c5747f132473f",
+      "size_bytes": 9371
+    },
+    {
+      "path": "evidence/failure-domain-audit.json",
+      "role": "derived_evidence",
+      "sha256": "9f12daa2b372c359f6c2d211c190bdbf105a6a5155df88b93a573d9b64d8980b",
+      "size_bytes": 1671
+    },
+    {
+      "path": "evidence/remote-blackhole-bfd.log",
+      "role": "raw_measurement",
+      "sha256": "8ce2ff2fd4232a96f0e650042673accc9ba78431a6def8e897b681854f3ab963",
+      "size_bytes": 12852
+    },
+    {
+      "path": "evidence/remote-blackhole-ospf.log",
+      "role": "raw_measurement",
+      "sha256": "9caca36a03ada9a74a81bb8ac022d4ba016c92d581c2703844741be16f0f52aa",
+      "size_bytes": 10216
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-01.log",
+      "role": "raw_measurement",
+      "sha256": "cdecc92969c37c82949b0043eca90a5af3cab0bee4985cee0b72f41018728ed2",
+      "size_bytes": 8020
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-02.log",
+      "role": "raw_measurement",
+      "sha256": "a07ab52ed1850151f2796e165c068f8df599f8548fed26cbe7383ccb44da0b47",
+      "size_bytes": 8098
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-03.log",
+      "role": "raw_measurement",
+      "sha256": "afb6e95508e4d9b06e1f4ea461de2afee68397bf94010ca96a6c69bef6339879",
+      "size_bytes": 8020
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-04.log",
+      "role": "raw_measurement",
+      "sha256": "1a5bf2bdbbe7d919f805cad10229ff382034431b620954b6dde803dc8edb0c42",
+      "size_bytes": 8097
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-05.log",
+      "role": "raw_measurement",
+      "sha256": "afab19166f41d8e7f53062faea5edec7bccdb80d86c68710fd8549462bcca68c",
+      "size_bytes": 8098
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-06.log",
+      "role": "raw_measurement",
+      "sha256": "f8f7993538305e81298aeb191215d7227894d5ef4a6cbeaa96c159a60b5796f3",
+      "size_bytes": 8020
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-07.log",
+      "role": "raw_measurement",
+      "sha256": "b9878af24e08d8001725b1bdb763bb329c013a5c0b2826331cced1cf580007ba",
+      "size_bytes": 8020
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-08.log",
+      "role": "raw_measurement",
+      "sha256": "3bd9f343c5a059f8f47962b918a92f815be9fe846a241797ae74724d0c213d17",
+      "size_bytes": 8020
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-09.log",
+      "role": "raw_measurement",
+      "sha256": "4b94966b2850cc598220d3a0c30359fbc99900df1ebf1517f95380f2d3989d61",
+      "size_bytes": 8098
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-10.log",
+      "role": "raw_measurement",
+      "sha256": "60d89dc9599c620beca99dd184cfbe32c369229f14a1ef1393ef644de9caa22a",
+      "size_bytes": 8099
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-11.log",
+      "role": "raw_measurement",
+      "sha256": "44097aa54b968138053c007b39cd3099f2b6ab30b7c5f49235ee4c83b89f7d45",
+      "size_bytes": 8021
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-12.log",
+      "role": "raw_measurement",
+      "sha256": "0069e273e569380df827dbbf102b2a735efc338d396eff0d143c348b4ee29295",
+      "size_bytes": 8020
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-13.log",
+      "role": "raw_measurement",
+      "sha256": "261d0191fb69936993c4d8c21a7b4a0965325eea5c5c760d1896e2d5729257f0",
+      "size_bytes": 8021
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-14.log",
+      "role": "raw_measurement",
+      "sha256": "0b97c791a65eb3c78532094cc44d2faec9e83061cd2bf2d1e3aec2dade2605eb",
+      "size_bytes": 8021
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-15.log",
+      "role": "raw_measurement",
+      "sha256": "fb2c4ef114a5332650fe26f245e975a932e251d7e737ee582e29f599ba873daa",
+      "size_bytes": 8021
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-16.log",
+      "role": "raw_measurement",
+      "sha256": "bd245024817af2fa40b37f11b9aabcca0e92c5db9602933ecf387970ea8af304",
+      "size_bytes": 8021
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-17.log",
+      "role": "raw_measurement",
+      "sha256": "4507cc91c8672ec29eee2481cc4d501a54c54d705a85918f93df590aac1368f0",
+      "size_bytes": 8099
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-18.log",
+      "role": "raw_measurement",
+      "sha256": "2f1a7a5649efef869e7fe8f3c54b2da639ec17dcc4f78df8e22730e543a9f60b",
+      "size_bytes": 8021
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-19.log",
+      "role": "raw_measurement",
+      "sha256": "c37e13d33c78228da3b09b719b31858b254b098f0da9448ea0df6e3e52c9a342",
+      "size_bytes": 8099
+    },
+    {
+      "path": "evidence/repeated/bfd_100x3/trial-20.log",
+      "role": "raw_measurement",
+      "sha256": "806df89348db29c0ac4ed54e531e4871c8e92c8d9817b6358b0ce322b3cade75",
+      "size_bytes": 8021
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-01.log",
+      "role": "raw_measurement",
+      "sha256": "1df73c005838752ff690801fa491a0f0532d7e6388f37a424c89d944140c36a0",
+      "size_bytes": 4864
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-02.log",
+      "role": "raw_measurement",
+      "sha256": "e1612e8e75d5f66b42d91dfcd90cead1c4d3802868060b26cc75df6437e3cc4f",
+      "size_bytes": 5180
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-03.log",
+      "role": "raw_measurement",
+      "sha256": "40bd3d29aaaf03bba1fc27807c702bab99d5350172f9bbd88171f279d8df28fe",
+      "size_bytes": 5020
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-04.log",
+      "role": "raw_measurement",
+      "sha256": "4b658ee77216741fd1e3245db41793b455912d61fcfc37df711a4afcd8c6a175",
+      "size_bytes": 5418
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-05.log",
+      "role": "raw_measurement",
+      "sha256": "8785db526d772257b9f08fb73aee4c458b6ee70d6b86154ce1e072ee22cc58a7",
+      "size_bytes": 5020
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-06.log",
+      "role": "raw_measurement",
+      "sha256": "53bdf4eecbc9069af3707f6dcdcfde8eb4f050fcf5d83c853d57a9478c504ed2",
+      "size_bytes": 5020
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-07.log",
+      "role": "raw_measurement",
+      "sha256": "7708542de29d48ddd01f3b2af18893154fbdae4ae76f110664912fa681c502d4",
+      "size_bytes": 5336
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-08.log",
+      "role": "raw_measurement",
+      "sha256": "6c7a74285746350e2573e9661df4d4d8833177edfa68b4a9e911ee599f9327cb",
+      "size_bytes": 4944
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-09.log",
+      "role": "raw_measurement",
+      "sha256": "b4e36d04174b9a8b419359f0eeb3d924df638bad986a3a963f1337d14c2ad8cb",
+      "size_bytes": 5336
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-10.log",
+      "role": "raw_measurement",
+      "sha256": "82326efbc60b2aa00ee3c9148d751c7c70149d880ae812a036948e301c034db3",
+      "size_bytes": 5181
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-11.log",
+      "role": "raw_measurement",
+      "sha256": "433a31c276eb248533c734da8fbf2b186d418b1600612fcbef27ae28b45f72d6",
+      "size_bytes": 5497
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-12.log",
+      "role": "raw_measurement",
+      "sha256": "2a4b1f7dfb915f423424455301a0f97509819ea27b11c1a55dc10934f0aefab9",
+      "size_bytes": 5021
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-13.log",
+      "role": "raw_measurement",
+      "sha256": "65fdc372debfe9b7c62ab01c37d213c63fb370e6fc251e5ad4f26b3e7c71de84",
+      "size_bytes": 5419
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-14.log",
+      "role": "raw_measurement",
+      "sha256": "e4dc58cbddfba6c50c3ef475e33e7a53cdcac420c7ebfe9296d4950b0d3e572f",
+      "size_bytes": 5103
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-15.log",
+      "role": "raw_measurement",
+      "sha256": "d686f10c187a007d00540b553a602f01c8a897d646c0740c90a42efeefd5db07",
+      "size_bytes": 5337
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-16.log",
+      "role": "raw_measurement",
+      "sha256": "6b88f8f039cabb7508101916195d8c9323887c89e9e96a5b93019890ef036f84",
+      "size_bytes": 5021
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-17.log",
+      "role": "raw_measurement",
+      "sha256": "d7609da86ed1ed1ac18f7e99dc2a752d48edad09d0ee44b81c8ce583f6769ecd",
+      "size_bytes": 5337
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-18.log",
+      "role": "raw_measurement",
+      "sha256": "cdcc8c27347c5a65f0be7170cd6ab2c0fa2203ea77b8df86d262615e6eff3354",
+      "size_bytes": 5021
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-19.log",
+      "role": "raw_measurement",
+      "sha256": "da66b581b9a1695a33b7f8afa9d7c59675c0b69d657d49d77de5b5034bf2a522",
+      "size_bytes": 5337
+    },
+    {
+      "path": "evidence/repeated/ospf_only/trial-20.log",
+      "role": "raw_measurement",
+      "sha256": "8329f33490973dd61525447e631b35590dfc2cdb747c54bf9e28b55d24556d84",
+      "size_bytes": 4945
+    },
+    {
+      "path": "lab/designs.yml",
+      "role": "configuration",
+      "sha256": "ea9915bebd861020db2509a115ee1066fe12bb19234fb16e1a351351511588bf",
+      "size_bytes": 195
+    },
+    {
+      "path": "lab/failure-domains.yml",
+      "role": "configuration",
+      "sha256": "af7064481874b8715a34ef3c76e0249148e973130cc1855cb0eaae5e5ef89fe5",
+      "size_bytes": 303
+    },
+    {
+      "path": "lab/frr/access1/frr.conf",
+      "role": "configuration",
+      "sha256": "0994d203b0de7d431977ad75151cec817dc60988d2addd6c8f72f607321cc314",
+      "size_bytes": 730
+    },
+    {
+      "path": "lab/frr/access2/frr.conf",
+      "role": "configuration",
+      "sha256": "2d9ce109e62538c3bba065435dd1abe2864a9c9ca2d1c00908a5ce8775139d7d",
+      "size_bytes": 730
+    },
+    {
+      "path": "lab/frr/agg1/frr.conf",
+      "role": "configuration",
+      "sha256": "ec833d5c7c928c347775e8266c757e6a5ea30d7db5443e1590fb47d771c80d54",
+      "size_bytes": 992
+    },
+    {
+      "path": "lab/frr/agg2/frr.conf",
+      "role": "configuration",
+      "sha256": "b5dfb52a843cafa4a7a5bebf9ce5d3e4143b526954c5d9bfd45fe52d58e89daa",
+      "size_bytes": 992
+    },
+    {
+      "path": "lab/frr/core1/frr.conf",
+      "role": "configuration",
+      "sha256": "ef919790a03e7cb032ca93a678681dd3d00888d027f39420381947299d8d079b",
+      "size_bytes": 935
+    },
+    {
+      "path": "lab/frr/core2/frr.conf",
+      "role": "configuration",
+      "sha256": "73dfeccf049345c7a6a760a2796a49b5e8d40a2c9149b8ddcd84a385c8d4f4c1",
+      "size_bytes": 801
+    },
+    {
+      "path": "lab/frr/daemons",
+      "role": "configuration",
+      "sha256": "3f0a64a7c30f9a6665cc3bf6df85aaf4e8d3320499ba59a74071b227f06ce854",
+      "size_bytes": 75
+    },
+    {
+      "path": "lab/intent-dual-homed.yml",
+      "role": "configuration",
+      "sha256": "98f9263913bf23d7d7339735fc4b5b093db3b2b1defa51ddbfcb6c1109801cb1",
+      "size_bytes": 1047
+    },
+    {
+      "path": "lab/intent.yml",
+      "role": "configuration",
+      "sha256": "ce0698f40e79df5fdfe18e3f0964051f4ec0f2bef39154c34bf9a5b25092e641",
+      "size_bytes": 968
+    },
+    {
+      "path": "lab/runtime-expectations.yml",
+      "role": "configuration",
+      "sha256": "9d9feef1b9384b7c70ac02390bb48ba5513de853d083d31dbd6b3c008a77b6ef",
+      "size_bytes": 384
+    },
+    {
+      "path": "lab/telconet.clab.yml",
+      "role": "configuration",
+      "sha256": "060d23c47783e790e003a29827fca2fecca0e4dfe3540f27e5ea5b5c50208c53",
+      "size_bytes": 2911
+    }
+  ],
+  "bundle": "telconet-portfolio-evidence",
+  "bundle_sha256": "d34a18e1b270763918b02dc18cf57a662d42851aab2fbfff466a337cc63054cc",
+  "configuration_sha256": "12926a3cdff3f5554aded09228aecdd81a6727398761e563fcff3fa363de97b3",
+  "schema_version": 1
+}

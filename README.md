@@ -23,7 +23,7 @@ FRRouting 라우터 6대를 containerlab으로 구성하고, 링크 carrier는 �
 | 측정 | BFD·OSPF·RIB·ICMP 완료 조건, monotonic/epoch timestamp 원시 로그 |
 | 복원력 감사 | 링크 N-1, 노드 N-1, 선언형 SRLG 복합 장애 분석 |
 | 운영 가시성 | FastAPI, Prometheus metrics·alert rule, Grafana dashboard |
-| 재현성 | 42개 원시 로그 재계산, 설정 fingerprint, 자동 보고서, CI E2E |
+| 재현성 | 42개 원시 로그 재계산, 59개 artifact manifest, 설정 fingerprint, CI E2E provenance attestation |
 
 처음 보는 경우에는 [핵심 결과](#핵심-결과) → [OSPF 망 설계](#ospf-망-설계) → [실험 방법](#실험-방법) 순서로 읽으면 된다. 결과에 대한 기술적 해석은 [분석 결과 보고서](docs/ANALYSIS_REPORT.md), 수치의 출처와 무결성은 [자동 생성 실험 보고서](docs/EXPERIMENT_REPORT.md)에서 확인할 수 있다.
 
@@ -182,6 +182,7 @@ README의 숫자를 대시보드에서 수기로 옮기지 않았다. 원시 로
   → topology·FRR 설정 SHA-256 검증
   → evidence/bfd-repeated-trials.json
   → docs/EXPERIMENT_REPORT.md
+  → evidence/manifest.json (59개 입력·결과 bundle digest)
   → FastAPI /metrics
   → Prometheus · Grafana
 ```
@@ -189,15 +190,21 @@ README의 숫자를 대시보드에서 수기로 옮기지 않았다. 원시 로
 - [40개 원시 로그](evidence/repeated)
 - [반복 실험 JSON](evidence/bfd-repeated-trials.json)
 - [자동 생성된 실험 보고서](docs/EXPERIMENT_REPORT.md)
+- [검증 가능한 evidence manifest](evidence/manifest.json)
 - [실험 자동화 스크립트](scenarios/bfd_repeated_trials_lab.sh)
 - [집계 구현](src/telconet_sentinel/repeated_trials.py)
 - [보고서 생성기](src/telconet_sentinel/report.py)
 
 보고서는 단회 비교, 반복 실험, SRLG 감사 evidence의 SHA-256과 configuration fingerprint를 함께 기록한다. 생성 시 단회·반복 결과는 42개 원시 로그에서 다시 계산하고, fingerprint는 현재 랩 설정과 대조하며, SRLG 결과는 versioned intent와 failure-domain 선언에서 다시 계산한다. 어느 한 단계라도 맞지 않으면 생성을 중단하고, 입력 evidence가 바뀌었는데 보고서를 다시 만들지 않아도 integration test가 실패한다.
 
+저장소를 clone한 사람은 다음 한 줄로 같은 검증을 수행할 수 있다. 이 명령은 랩 설정 13개, 원시 측정 42개, 파생 evidence 3개와 생성 보고서 1개를 다시 확인한다. 파일 해시만 비교하는 것이 아니라 원시 로그에서 통계를 재계산하고 현재 intent에서 SRLG 결과와 보고서를 다시 만든 뒤 manifest의 bundle digest와 대조한다.
+
 ```bash
+uv run telconet-evidence verify --project-root .
 telconet-report --output docs/EXPERIMENT_REPORT.md
 ```
+
+main·정기 실행에서 만들어지는 live E2E evidence archive에는 GitHub Actions OIDC와 Sigstore 기반 provenance attestation을 발급한다. 따라서 다운로드한 archive가 이 저장소의 어떤 commit과 workflow에서 생성됐는지 별도로 검증할 수 있다. 자세한 절차와 신뢰 경계는 [Evidence 검증 가이드](docs/EVIDENCE_VERIFICATION.md)에 정리했다.
 
 ## 프로젝트 구조
 
