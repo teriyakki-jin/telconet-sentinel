@@ -88,16 +88,21 @@ jobs:
       - name: Run service dual-homing E2E
         run: bash scenarios/dual_homing_e2e.sh
 
+      - name: Run runtime N-1 matrix E2E
+        run: bash scenarios/runtime_n1_matrix_e2e.sh
+
       - name: Package live evidence
         run: |
           set -euo pipefail
           unsafe_path="$(find artifacts/live-convergence artifacts/dual-homing \
+            artifacts/runtime-n1-matrix \
             \( -type l -o \( ! -type f ! -type d \) \) -print -quit)"
           if [[ -n "${unsafe_path}" ]]; then
             echo "refusing to archive unsafe path: ${unsafe_path}" >&2
             exit 1
           fi
           total_bytes="$(find artifacts/live-convergence artifacts/dual-homing \
+            artifacts/runtime-n1-matrix \
             -type f -printf '%s\n' | awk '{ total += $1 } END { print total + 0 }')"
           if (( total_bytes > 52428800 )); then
             echo "live evidence exceeds 52428800 bytes" >&2
@@ -105,6 +110,7 @@ jobs:
           fi
           tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 \
             --numeric-owner -cf - artifacts/live-convergence artifacts/dual-homing \
+            artifacts/runtime-n1-matrix \
             | gzip -n > artifacts/telconet-live-evidence.tar.gz
 
       - name: Upload lab evidence
@@ -115,6 +121,7 @@ jobs:
           path: |
             artifacts/live-convergence
             artifacts/dual-homing
+            artifacts/runtime-n1-matrix
             artifacts/telconet-live-evidence.tar.gz
           if-no-files-found: warn
           retention-days: 14
