@@ -63,6 +63,16 @@ def test_dual_homed_frr_service_prefix_and_transit_costs() -> None:
     assert "ip ospf cost 21" in core2
     assert "ip address 10.20.0.10/32" in service
     assert "ip ospf cost 9" in service
+    assert (
+        "interface eth2\n"
+        " description TO-CORE2-BACKUP\n"
+        " ip address 10.0.3.3/31\n"
+        " ip ospf area 0.0.0.0\n"
+        " ip ospf network point-to-point\n"
+        " ip ospf hello-interval 1\n"
+        " ip ospf dead-interval 4\n"
+        " ip ospf cost 30"
+    ) in service
     assert "passive-interface lo" in service
 
 
