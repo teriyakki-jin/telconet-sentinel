@@ -11,6 +11,7 @@ from ipaddress import IPv4Network, ip_network
 from pathlib import Path
 from typing import Any, Literal, NoReturn, cast
 
+import yaml
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -20,16 +21,31 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from yaml.events import (
+    AliasEvent,
+    MappingEndEvent,
+    MappingStartEvent,
+    SequenceEndEvent,
+    SequenceStartEvent,
+)
 
 from .audit import audit_fault_scenarios
-from .config import load_topology
 from .failure_domain import topology_fingerprint
 from .fault import link_failure_scenarios, transport_node_failure_scenarios
+from .intent import NetworkIntent
 from .models import NodeRole
-from .yaml_loader import load_yaml
+from .yaml_loader import UniqueKeySafeLoader
 
 _MAX_YAML_BYTES = 1024 * 1024
 _MAX_JSON_BYTES = 5 * 1024 * 1024
+_MAX_YAML_EVENTS = 10_000
+_MAX_YAML_ALIASES = 64
+_MAX_YAML_DEPTH = 32
+_MAX_TOPOLOGY_NODES = 64
+_MAX_TOPOLOGY_LINKS = 128
+_MAX_ACCESS_NODES = 16
+_MAX_PREFIXES = 128
+_MAX_FAULT_SCENARIOS = 64
 _NODE_PATTERN = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 _INTERFACE_PATTERN = re.compile(r"^eth[0-9]{1,2}$")
 _SCENARIO_PATTERN = re.compile(r"^(?:link|node):[a-z][a-z0-9-]{0,127}$")
@@ -221,6 +237,46 @@ def _sequence(value: object, label: str) -> Sequence[object]:
     return cast(Sequence[object], value)
 
 
+def _load_yaml_snapshot(raw: bytes, label: str) -> Any:
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"{label} must be UTF-8") from exc
+    alias_count = 0
+    depth = 0
+    start_events = (MappingStartEvent, SequenceStartEvent)
+    end_events = (MappingEndEvent, SequenceEndEvent)
+    for event_count, event in enumerate(
+        yaml.parse(text, Loader=UniqueKeySafeLoader), start=1
+    ):
+        if event_count > _MAX_YAML_EVENTS:
+            raise ValueError(f"{label} contains too many YAML events")
+        if isinstance(event, AliasEvent):
+            alias_count += 1
+            if alias_count > _MAX_YAML_ALIASES:
+                raise ValueError(f"{label} contains too many YAML aliases")
+        if isinstance(event, start_events):
+            depth += 1
+            if depth > _MAX_YAML_DEPTH:
+                raise ValueError(f"{label} exceeds the YAML nesting limit")
+        elif isinstance(event, end_events):
+            depth -= 1
+    return yaml.load(text, Loader=UniqueKeySafeLoader)
+
+
+def _validate_raw_topology_limits(document: Mapping[str, Any]) -> None:
+    nodes = _mapping(document.get("nodes"), "candidate intent nodes")
+    if not 1 <= len(nodes) <= _MAX_TOPOLOGY_NODES:
+        raise ValueError(
+            f"candidate intent must contain at most {_MAX_TOPOLOGY_NODES} nodes"
+        )
+    links = _sequence(document.get("links"), "candidate intent links")
+    if not 1 <= len(links) <= _MAX_TOPOLOGY_LINKS:
+        raise ValueError(
+            f"candidate intent must contain 1 to {_MAX_TOPOLOGY_LINKS} links"
+        )
+
+
 def _parse_endpoint(value: object, nodes: set[str]) -> tuple[str, str]:
     if not isinstance(value, str) or value.count(":") != 1:
         raise ValueError("containerlab endpoint must be node:interface")
@@ -234,7 +290,10 @@ def _parse_endpoint(value: object, nodes: set[str]) -> tuple[str, str]:
 
 def _load_lab_links(path: Path) -> tuple[bytes, dict[frozenset[str], dict[str, str]]]:
     raw = _ensure_bounded_file(path, "containerlab topology", _MAX_YAML_BYTES)
-    document = _mapping(load_yaml(path), "containerlab document")
+    document = _mapping(
+        _load_yaml_snapshot(raw, "containerlab topology"),
+        "containerlab document",
+    )
     topology = _mapping(document.get("topology"), "containerlab topology")
     node_document = _mapping(topology.get("nodes"), "containerlab nodes")
     if not 1 <= len(node_document) <= 64:
@@ -265,9 +324,24 @@ def _load_lab_links(path: Path) -> tuple[bytes, dict[frozenset[str], dict[str, s
 
 
 def build_runtime_n1_plan(intent_path: Path, lab_path: Path) -> RuntimeN1Plan:
-    _ensure_bounded_file(intent_path, "candidate intent", _MAX_YAML_BYTES)
-    topology = load_topology(intent_path)
+    intent_raw = _ensure_bounded_file(intent_path, "candidate intent", _MAX_YAML_BYTES)
+    intent_document = _mapping(
+        _load_yaml_snapshot(intent_raw, "candidate intent"),
+        "candidate intent",
+    )
+    _validate_raw_topology_limits(intent_document)
+    topology = NetworkIntent.model_validate(intent_document).to_topology()
     lab_raw, lab_links = _load_lab_links(lab_path)
+    access_nodes = [node for node in topology.nodes if node.role is NodeRole.ACCESS]
+    if not 1 <= len(access_nodes) <= _MAX_ACCESS_NODES:
+        raise ValueError(
+            f"candidate intent must contain 1 to {_MAX_ACCESS_NODES} access nodes"
+        )
+    prefix_count = sum(len(node.prefixes) for node in topology.nodes)
+    if prefix_count > _MAX_PREFIXES:
+        raise ValueError(
+            f"candidate intent must contain at most {_MAX_PREFIXES} prefixes"
+        )
     services = [node for node in topology.nodes if node.role is NodeRole.SERVICE]
     service_prefixes = [prefix for node in services for prefix in node.prefixes]
     if len(service_prefixes) != 1:
@@ -277,6 +351,10 @@ def build_runtime_n1_plan(intent_path: Path, lab_path: Path) -> RuntimeN1Plan:
         *link_failure_scenarios(topology),
         *transport_node_failure_scenarios(topology),
     )
+    if len(faults) > _MAX_FAULT_SCENARIOS:
+        raise ValueError(
+            f"runtime N-1 plan supports at most {_MAX_FAULT_SCENARIOS} scenarios"
+        )
     audit = audit_fault_scenarios(topology, faults)
     degrees = {node.name: 0 for node in topology.nodes}
     for link in topology.links:
@@ -499,8 +577,8 @@ def _write_json(path: Path, document: BaseModel | Mapping[str, object]) -> None:
 
 
 def _refuse_input_overwrite(output: Path, inputs: Sequence[Path]) -> None:
-    output_path = output.absolute()
-    if any(output_path == path.absolute() for path in inputs):
+    output_path = output.resolve(strict=False)
+    if any(output_path == path.resolve(strict=False) for path in inputs):
         raise ValueError("output must not overwrite an input")
 
 

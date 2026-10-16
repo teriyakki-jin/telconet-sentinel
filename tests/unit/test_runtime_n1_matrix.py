@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from telconet_sentinel.runtime_resilience import (
     RuntimeN1Observation,
+    _refuse_input_overwrite,
     build_runtime_n1_evidence,
     build_runtime_n1_plan,
     extract_full_neighbor_count,
@@ -102,6 +103,72 @@ def test_builds_exact_link_and_node_runtime_plan_from_candidate_intent() -> None
         ("core1", "eth4"),
     ]
     assert [path.fault_metric for path in core.paths] == [140, 50]
+
+
+def test_plan_parses_each_bounded_yaml_snapshot_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_open = Path.open
+    opened: list[Path] = []
+
+    def tracked_open(path: Path, *args: object, **kwargs: object) -> object:
+        if path in {INTENT, LAB}:
+            opened.append(path)
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", tracked_open)
+
+    build_runtime_n1_plan(INTENT, LAB)
+
+    assert opened.count(INTENT) == 1
+    assert opened.count(LAB) == 1
+
+
+def test_plan_rejects_oversized_topology_before_fault_audit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    nodes = ["  access1:\n    role: access"]
+    nodes.extend(f"  core{index}:\n    role: core" for index in range(63))
+    nodes.append(
+        "  service-host:\n"
+        "    role: service\n"
+        "    prefixes: [10.20.0.10/32]"
+    )
+    candidate_intent = tmp_path / "oversized-intent.yml"
+    candidate_intent.write_text(
+        "version: 1\nnodes:\n" + "\n".join(nodes) + "\nlinks: []\n",
+        encoding="utf-8",
+    )
+
+    def unexpected_audit(*args: object, **kwargs: object) -> None:
+        raise AssertionError("fault audit must not run for an oversized topology")
+
+    monkeypatch.setattr(
+        "telconet_sentinel.runtime_resilience.audit_fault_scenarios",
+        unexpected_audit,
+    )
+
+    with pytest.raises(ValueError, match="at most 64 nodes"):
+        build_runtime_n1_plan(candidate_intent, LAB)
+
+
+def test_plan_rejects_excessive_yaml_alias_expansion(tmp_path: Path) -> None:
+    aliases = "\n".join(
+        f"  access{index}: *access" for index in range(2, 68)
+    )
+    candidate_intent = tmp_path / "aliases.yml"
+    candidate_intent.write_text(
+        "version: 1\n"
+        "nodes:\n"
+        "  access1: &access\n"
+        "    role: access\n"
+        f"{aliases}\n"
+        "links: []\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="too many YAML aliases"):
+        build_runtime_n1_plan(candidate_intent, LAB)
 
 
 def test_runtime_observations_match_all_model_expectations() -> None:
@@ -319,3 +386,15 @@ def test_plan_loader_rejects_ambiguous_json(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="duplicate JSON key"):
         load_runtime_n1_plan(path)
+
+
+def test_output_cannot_alias_an_input_through_parent_segments(tmp_path: Path) -> None:
+    input_path = tmp_path / "input.json"
+    alias_parent = tmp_path / "nested"
+    alias_parent.mkdir()
+
+    with pytest.raises(ValueError, match="must not overwrite"):
+        _refuse_input_overwrite(
+            alias_parent / ".." / input_path.name,
+            (input_path,),
+        )
