@@ -21,7 +21,7 @@ FRRouting 라우터 6대를 containerlab으로 구성하고, 링크 carrier는 �
 | 장애 실험 | carrier-up 원격 블랙홀 주입, OSPF-only/BFD 프로필 자동 반복 |
 | 실험 preflight | OSPF neighbor·RIB/FIB·BFD timer를 intent와 비교하고 drift 시 장애 주입 차단 |
 | 측정 | BFD·OSPF·RIB·ICMP 완료 조건, monotonic/epoch timestamp 원시 로그 |
-| 복원력 감사 | 링크 N-1, 노드 N-1, 선언형 SRLG 복합 장애 분석 |
+| 복원력 감사 | 링크 11개·전송 노드 4개 N-1 모델링, 실제 FRR 15개 장애·120개 조건 대조, 선언형 SRLG 분석 |
 | 운영 가시성 | FastAPI, Prometheus metrics·alert rule, Grafana dashboard |
 | 재현성 | 42개 원시 로그 재계산, 59개 artifact manifest, 설정 fingerprint, CI E2E provenance attestation |
 
@@ -45,7 +45,7 @@ FRRouting 라우터 6대를 containerlab으로 구성하고, 링크 carrier는 �
 | 2. OSPF 경로 설계 | cost로 정상 경로와 우회 경로를 고정할 수 있는가 | 정상 cost `30`, 우회 cost `140` |
 | 3. 장애 탐지 | carrier-up 블랙홀에서 OSPF와 BFD의 탐지 차이는 얼마인가 | BFD p95 탐지 상한 `519ms`, OSPF `4,058ms` |
 | 4. 수렴 과정 | 장애부터 data plane 복구까지 어떤 완료 조건을 확인해야 하는가 | BFD·OSPF·RIB·ICMP 조건을 단계별로 검증 |
-| 5. 설계 복원력 | 모든 단일 링크·전송 노드 장애를 우회할 수 있는가 | 서비스 이중화 후보가 링크·노드 N-1 통과 |
+| 5. 설계 복원력 | 모든 단일 링크·전송 노드 장애를 우회할 수 있는가 | 모델 15개 시나리오와 FRR 런타임 120개 조건 모두 통과 |
 | 6. 공유 위험 | N-1을 통과한 설계도 복합 장애에서 안전한가 | `service-entry` SRLG에서 outage 확인 |
 
 즉, 이 프로젝트의 핵심은 “BFD가 빠르다”에서 끝나지 않는다. 빠른 탐지, 올바른 경로 설계, 실제 도달성, 공유 위험을 같은 실험 체계 안에서 연결했다.
@@ -95,9 +95,14 @@ blackhole_injected
 |---|---:|---:|
 | 단일 링크 | 10개 중 `OUTAGE` 1개 | 11개 모두 서비스 경로 유지 |
 | 전송 노드 | `core1` 제거 시 서비스 단절 | `agg1`, `agg2`, `core1`, `core2` 각각 제거해도 경로 유지 |
+| 모델–런타임 대조 | 미수행 | 15개 장애, 120개 route·ICMP 조건 통과 |
 | 선언된 SRLG | 미검증 | `service-entry` 동시 단절에서 `OUTAGE` |
 
 N-1 통과는 물리적으로 독립된 두 경로를 증명하지 않는다. 그래서 `failure-domains.yml`에 함께 소실될 링크와 노드를 선언하고 복합 장애로 다시 계산했다.
+
+그래프 계산만으로 PASS를 선언하지 않았다. Intent에서 11개 링크 장애와 4개 전송 노드 장애를 typed plan으로 만들고, 실제 FRR 인터페이스를 하나씩 격리했다. 각 시나리오에서 access1·access2의 장애 후 route metric과 ICMP, 복구 후 route metric과 ICMP를 비교해 총 120개 조건을 확인했다. 다음 장애를 넣기 전에는 7개 FRR 노드의 OSPF adjacency가 모두 `Full`로 돌아왔는지도 검사한다. [검증 CI run](https://github.com/teriyakki-jin/telconet-sentinel/actions/runs/38833744440)은 15개 시나리오와 120개 조건을 모두 통과했다.
+
+이 과정에서 모델의 순방향 metric은 맞지만 service-host의 역방향 두 경로가 cost `41/41`로 겹치는 ECMP를 실제로 발견했다. backup 인터페이스 cost를 조정해 `41/50`으로 분리한 뒤 전체 행렬을 다시 통과시켰다. 단순히 테스트 수를 늘린 것이 아니라, 런타임 검증으로 설계 결함 하나를 찾아 수정한 사례다.
 
 | Failure Domain | 장애 범위 | 결과 |
 |---|---|---|
@@ -185,6 +190,12 @@ README의 숫자를 대시보드에서 수기로 옮기지 않았다. 원시 로
   → evidence/manifest.json (59개 입력·결과 bundle digest)
   → FastAPI /metrics
   → Prometheus · Grafana
+
+candidate intent + containerlab topology
+  → typed N-1 runtime plan (11 links + 4 transport nodes)
+  → FRR fault injection · route/ICMP observation
+  → 15 scenarios · 120 expected/actual checks
+  → signed live E2E evidence archive
 ```
 
 - [40개 원시 로그](evidence/repeated)
@@ -214,10 +225,14 @@ main·정기 실행에서 만들어지는 live E2E evidence archive에는 GitHub
 flowchart LR
     INTENT["versioned intent YAML"] --> LAB["containerlab · FRR"]
     INTENT --> AUDIT["link · node · SRLG audit"]
+    AUDIT --> PLAN["typed runtime N-1 plan"]
     INTENT --> PREFLIGHT["intent-runtime conformance"]
     LAB --> SNAPSHOT["OSPF · RIB/FIB · BFD snapshot"]
     SNAPSHOT --> PREFLIGHT
     PREFLIGHT -->|PASS| FAULT["carrier-up blackhole"]
+    PLAN --> MATRIX["15-scenario FRR fault matrix"]
+    LAB --> MATRIX
+    MATRIX --> RAW
     FAULT --> OBSERVE["BFD · OSPF · RIB · ICMP"]
     OBSERVE --> RAW["timestamped raw logs"]
     RAW --> EVIDENCE["recalculated evidence"]
@@ -238,6 +253,7 @@ flowchart LR
 | `resilience.py` | 링크·노드 N-1 결과를 API와 Prometheus 형식으로 변환 |
 | convergence collector | FRR JSON과 ICMP를 monotonic clock으로 수집 |
 | `runtime_conformance.py` | 장애 전 FRR snapshot을 intent·실험 profile과 비교하고 실행 여부 판정 |
+| `runtime_resilience.py` | intent의 N-1 결과를 실제 인터페이스 장애 plan으로 변환하고 120개 관측 조건 대조 |
 | `report.py` | 측정 evidence와 모델 감사를 검증해 재생성 가능한 Markdown 보고서 작성 |
 
 링크·노드·SRLG 분석은 같은 경로 계산 코드를 사용한다. API는 Docker socket이나 container 명령에 접근하지 않고, 수집기가 전송한 typed event와 계산된 결과만 저장한다. 자세한 경계는 [시스템 아키텍처 문서](docs/ARCHITECTURE.md)에서 설명한다.
@@ -287,6 +303,7 @@ bash scenarios/bfd_comparison_lab.sh
 bash scenarios/bfd_repeated_trials_lab.sh
 bash scenarios/live_convergence_e2e.sh
 bash scenarios/dual_homing_e2e.sh
+bash scenarios/runtime_n1_matrix_e2e.sh
 ```
 
 반복 횟수는 `TELCONET_TRIALS`로 20~30회 범위에서 바꿀 수 있다. Live E2E는 랩 배포, 장애 주입, 수렴 수집, evidence 검증과 정리까지 수행한다.
@@ -301,7 +318,7 @@ Live E2E는 장애를 주입하기 전에 `runtime-conformance.json`을 생성�
 | API | 제한된 입력 모델, 감사 결과, event 조회, 승인 상태, Prometheus metrics |
 | Contract | intent–containerlab 링크, FRR 설정, dashboard, alert rule, E2E workflow 일치 |
 | Integration | 원시 로그 재계산, runtime conformance, configuration fingerprint, 보고서 freshness·provenance |
-| Lab E2E | 실제 FRR blackhole 수렴, 서비스 이중화, core1 격리, ICMP 복구 |
+| Lab E2E | 실제 FRR blackhole 수렴, 서비스 이중화, 링크 11개·전송 노드 4개 격리, 120개 route·ICMP 조건 |
 | Static·Security | Ruff, strict mypy, Bash syntax, CodeQL |
 | CI | branch coverage 80% gate, promtool rule test, containerlab E2E |
 
@@ -311,6 +328,7 @@ Live E2E는 장애를 주입하기 전에 `runtime-conformance.json`을 생성�
 - 수렴 값은 로컬 containerlab과 100ms polling에서 얻은 관측 상한이다.
 - 선언한 failure domain은 분석 가정이며 실제 관로·전원 분리를 조사한 결과가 아니다.
 - N-1 통과는 capacity headroom, 무손실 전환, 물리 경로 독립성을 보장하지 않는다.
+- 런타임 노드 장애는 대상 노드의 모든 transit interface를 admin-down한 것이며 전원·프로세스·하드웨어 고장을 재현한 것은 아니다.
 - OSPF authentication, 장기 부하, 장비 vendor 간 interoperability는 검증하지 않았다.
 - Prometheus alert는 로컬 상태 지속 여부를 확인하며 Alertmanager와 on-call 연동은 포함하지 않는다.
 - SQLite는 최근 수렴 run 20개만 보관하며 장기 시계열 저장소가 아니다.

@@ -30,7 +30,7 @@ manifest 갱신은 측정값의 정당성을 증명하지 않는다. 변경된 �
 
 ## CI provenance attestation
 
-`containerlab E2E` workflow는 digest로 고정한 FRR·Alpine 이미지를 먼저 적재하고 live convergence와 dual-homing 결과를 결정론적인 `telconet-live-evidence.tar.gz`로 묶는다. main push와 main 기준 정기·수동 실행에서는 별도의 최소 권한 job이 GitHub Actions 단기 OIDC identity로 이 archive에 Sigstore provenance attestation을 발급한다.
+`containerlab E2E` workflow는 digest로 고정한 FRR·Alpine 이미지를 먼저 적재하고 live convergence, dual-homing, runtime N-1 matrix 결과를 결정론적인 `telconet-live-evidence.tar.gz`로 묶는다. runtime matrix에는 intent에서 만든 `plan.json`, 15개 장애의 route·neighbor·ping 원본, `observation.json`, 120개 expected/actual 비교가 든 `evidence.json`이 포함된다. main push와 main 기준 정기·수동 실행에서는 별도의 최소 권한 job이 GitHub Actions 단기 OIDC identity로 이 archive에 Sigstore provenance attestation을 발급한다.
 
 다운로드한 archive는 GitHub CLI로 검증할 수 있다.
 
@@ -48,4 +48,5 @@ attestation은 archive가 어떤 repository, commit, event와 workflow에서 생
 - Git commit과 manifest는 versioned evidence의 변경 이력을 제공한다.
 - 독립 검증기는 저장소 내부 artifact 간 정합성과 재계산 가능성을 확인한다.
 - provenance attestation은 CI가 생성한 live archive를 workflow와 commit에 암호학적으로 연결한다.
+- runtime N-1 evidence의 plan·observation hash는 비교 입력을 묶고, attested commit은 실행에 사용한 versioned intent·containerlab·FRR 설정을 식별한다.
 - 이 저장소는 로컬 containerlab 시뮬레이션이며 실제 통신사 망의 SLA를 검증하지 않는다.

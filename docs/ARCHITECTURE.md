@@ -22,6 +22,10 @@ flowchart LR
     GRAPH --> FACTORY["typed fault scenario factories"]
     DOMAINS["failure-domains.yml"] --> FACTORY
     FACTORY --> N1["common fault audit engine"]
+    N1 --> PLAN["typed runtime N-1 plan"]
+    PLAN --> MATRIX["FRR link · node fault matrix"]
+    CLAB --> MATRIX
+    MATRIX --> RAW
     N1 --> API
     API --> IMPACT
     IMPACT --> INCIDENT["incident + impact + evidence"]
@@ -40,7 +44,7 @@ flowchart LR
 
 ## Analysis boundaries
 
-The analysis path has six explicit layers:
+The analysis path has seven explicit layers:
 
 1. `intent.py` rejects malformed or ambiguous YAML before domain objects exist.
 2. `Topology` owns graph identity and weighted path calculation, including sets of excluded links and nodes.
@@ -48,6 +52,7 @@ The analysis path has six explicit layers:
 4. `audit.py` owns the single reachability and cost-comparison algorithm. `resilience.py` only adapts its results to the established link/node API and metric contracts.
 5. `failure_domain.py` validates declared shared-risk groups and adapts their composite faults, access-path costs, API output, and bounded-label metrics.
 6. `runtime_conformance.py` compares a pre-fault FRR snapshot with versioned intent and experiment expectations. A failed check prevents the live fault experiment from starting.
+7. `runtime_resilience.py` maps every modeled candidate link and transport node to bounded, typed containerlab interfaces. The runner compares fault and restoration route metrics and reachability, and requires the complete OSPF adjacency baseline before starting the next scenario.
 
 `lab/designs.yml` declares which intent is the historical baseline and which is a candidate. This sidecar keeps the relationship explicit without changing `lab/intent.yml`, whose bytes are part of the checked-in 40-trial evidence fingerprint.
 
@@ -61,6 +66,8 @@ The analysis path has six explicit layers:
 - The host collector owns `docker exec`, reads FRR JSON and continuous ICMP, and sends only typed event fields to the API.
 - The E2E runner captures OSPF neighbor, RIB/FIB route, and BFD JSON before fault injection. The conformance process reads only bounded local files and emits per-check expected/actual evidence.
 - Runtime conformance is a fail-closed precondition for the live experiment; it does not modify router state.
+- The runtime N-1 runner is the privileged mutation boundary for the candidate lab. Its node and interface values come only from the validated plan, are checked again by the shell, and are passed as quoted arguments to `docker exec`.
+- Runtime N-1 observations must contain the exact planned scenario and access-node sets. Missing, duplicated, or extra observations fail closed.
 - The checked-in evidence manifest binds every report input and output after semantic recalculation; bounded reads and an exact inventory prevent unreviewed files from entering the bundle.
 - The E2E job has read-only repository permissions. A separate main-only job receives OIDC and attestation permissions after downloading the completed, size-bounded regular-file archive.
 - CI preloads FRR and Alpine by immutable multi-platform digest before containerlab resolves the historical topology image tags.
@@ -85,6 +92,7 @@ flowchart TB
     G2 --- C2
     C1 --- C2
     C1 --- SVC[service-host]
+    C2 --- SVC
 ```
 
 All router links participate in OSPF area 0. Interface costs create explicit primary and backup paths. The customer-facing `/24` networks are advertised from passive access interfaces.
@@ -100,4 +108,5 @@ All router links participate in OSPF area 0. Interface costs create explicit pri
 - Phase 5b: completed service dual-homing design and transport-node failure audit.
 - Phase 5c: completed strict shared-risk failure-domain modeling, cost-aware composite audit, API, metrics, and Grafana matrix.
 - Phase 6a: completed fail-closed intent-runtime preflight for the live convergence experiment.
+- Phase 6b: completed model-to-runtime N-1 matrix for 11 links and four transport nodes, with 120 route and reachability checks.
 - Foundation 1: completed strict versioned intent/catalog validation and a common multi-component fault audit engine.
