@@ -23,7 +23,7 @@ FRRouting 라우터 6대를 containerlab으로 구성하고, 링크 carrier는 �
 | 측정 | BFD·OSPF·RIB·ICMP 완료 조건, monotonic/epoch timestamp 원시 로그 |
 | 복원력 감사 | 링크 11개·전송 노드 4개 N-1 모델링, 실제 FRR 15개 장애·120개 조건 대조, 선언형 SRLG 분석 |
 | 운영 가시성 | FastAPI, Prometheus metrics·alert rule, Grafana dashboard |
-| 재현성 | 42개 원시 로그 재계산, 59개 artifact manifest, 설정 fingerprint, CI E2E provenance attestation |
+| 재현성 | 42개 원시 로그 재계산, 64개 artifact manifest, 설정 fingerprint, CI E2E provenance attestation |
 
 처음 보는 경우에는 [핵심 결과](#핵심-결과) → [OSPF 망 설계](#ospf-망-설계) → [실험 방법](#실험-방법) 순서로 읽으면 된다. 결과에 대한 기술적 해석은 [분석 결과 보고서](docs/ANALYSIS_REPORT.md), 수치의 출처와 무결성은 [자동 생성 실험 보고서](docs/EXPERIMENT_REPORT.md)에서 확인할 수 있다.
 
@@ -100,16 +100,18 @@ blackhole_injected
 
 N-1 통과는 물리적으로 독립된 두 경로를 증명하지 않는다. 그래서 `failure-domains.yml`에 함께 소실될 링크와 노드를 선언하고 복합 장애로 다시 계산했다.
 
-그래프 계산만으로 PASS를 선언하지 않았다. Intent에서 11개 링크 장애와 4개 전송 노드 장애를 typed plan으로 만들고, 실제 FRR 인터페이스를 하나씩 격리했다. 각 시나리오에서 access1·access2의 장애 후 route metric과 ICMP, 복구 후 route metric과 ICMP를 비교해 총 120개 조건을 확인했다. 다음 장애를 넣기 전에는 7개 FRR 노드의 OSPF adjacency가 모두 `Full`로 돌아왔는지도 검사한다. [검증 CI run](https://github.com/teriyakki-jin/telconet-sentinel/actions/runs/38833744440)은 15개 시나리오와 120개 조건을 모두 통과했다.
+그래프 계산만으로 PASS를 선언하지 않았다. Intent에서 11개 링크 장애와 4개 전송 노드 장애를 typed plan으로 만들고, 실제 FRR 인터페이스를 하나씩 격리했다. 각 시나리오에서 access1·access2의 장애 후 route metric과 ICMP, 복구 후 route metric과 ICMP를 비교해 총 120개 조건을 확인했다. 다음 장애를 넣기 전에는 7개 FRR 노드의 OSPF adjacency가 모두 `Full`로 돌아왔는지도 검사한다. [검증 CI run](https://github.com/teriyakki-jin/telconet-sentinel/actions/runs/38834563515)은 15개 시나리오와 120개 조건을 모두 통과했고, main에서 생성한 archive에는 GitHub Actions provenance attestation을 발급했다.
 
 이 과정에서 모델의 순방향 metric은 맞지만 service-host의 역방향 두 경로가 cost `41/41`로 겹치는 ECMP를 실제로 발견했다. backup 인터페이스 cost를 조정해 `41/50`으로 분리한 뒤 전체 행렬을 다시 통과시켰다. 단순히 테스트 수를 늘린 것이 아니라, 런타임 검증으로 설계 결함 하나를 찾아 수정한 사례다.
+
+대시보드의 `15/15`, `120/120`은 Prometheus scrape로 실험을 다시 계산한 값이 아니다. 위 attested run의 commit·workflow run·archive SHA-256을 담은 [게시용 요약](evidence/runtime-n1-dashboard.json)을 API가 읽어 metrics로 노출한다. 시작할 때 현재 candidate intent·containerlab·실제 mount되는 FRR 설정의 fingerprint와 정확한 15개 장애 목록이 요약과 다르면 API가 fail closed한다. 요약 파일이 누락돼도 결과를 숨긴 채 기동하지 않고 시작을 중단한다. 원본 route·neighbor·ping 관측과 expected/actual 비교는 CI evidence archive가 기준이다.
 
 | Failure Domain | 장애 범위 | 결과 |
 |---|---|---|
 | `primary-site-power` | `agg1`, `core1` 동시 손실 | `DEGRADED`, access1 cost `30 → 140` |
 | `service-entry` | 두 service-facing 링크 동시 단절 | `OUTAGE`, 두 Access 모두 unreachable |
 
-![초기 설계 GAP와 서비스 이중화 후보 PASS를 비교한 Grafana 대시보드](docs/assets/grafana-n1-resilience.png)
+![초기 설계 GAP, 서비스 이중화 후보와 15개 런타임 장애 검증 결과를 비교한 Grafana 대시보드](docs/assets/grafana-n1-resilience.png)
 
 ## OSPF 망 설계
 
@@ -187,7 +189,7 @@ README의 숫자를 대시보드에서 수기로 옮기지 않았다. 원시 로
   → topology·FRR 설정 SHA-256 검증
   → evidence/bfd-repeated-trials.json
   → docs/EXPERIMENT_REPORT.md
-  → evidence/manifest.json (59개 입력·결과 bundle digest)
+  → evidence/manifest.json (64개 입력·결과 bundle digest)
   → FastAPI /metrics
   → Prometheus · Grafana
 
@@ -196,6 +198,8 @@ candidate intent + containerlab topology
   → FRR fault injection · route/ICMP observation
   → 15 scenarios · 120 expected/actual checks
   → signed live E2E evidence archive
+  → evidence/runtime-n1-dashboard.json (attested run provenance index)
+  → FastAPI /metrics → Prometheus · Grafana
 ```
 
 - [40개 원시 로그](evidence/repeated)
@@ -208,7 +212,7 @@ candidate intent + containerlab topology
 
 보고서는 단회 비교, 반복 실험, SRLG 감사 evidence의 SHA-256과 configuration fingerprint를 함께 기록한다. 생성 시 단회·반복 결과는 42개 원시 로그에서 다시 계산하고, fingerprint는 현재 랩 설정과 대조하며, SRLG 결과는 versioned intent와 failure-domain 선언에서 다시 계산한다. 어느 한 단계라도 맞지 않으면 생성을 중단하고, 입력 evidence가 바뀌었는데 보고서를 다시 만들지 않아도 integration test가 실패한다.
 
-저장소를 clone한 사람은 다음 한 줄로 같은 검증을 수행할 수 있다. 이 명령은 랩 설정 13개, 원시 측정 42개, 파생 evidence 3개와 생성 보고서 1개를 다시 확인한다. 파일 해시만 비교하는 것이 아니라 원시 로그에서 통계를 재계산하고 현재 intent에서 SRLG 결과와 보고서를 다시 만든 뒤 manifest의 bundle digest와 대조한다.
+저장소를 clone한 사람은 다음 한 줄로 같은 검증을 수행할 수 있다. 이 명령은 랩 설정 17개, 원시 측정 42개, 파생 evidence 4개와 생성 보고서 1개를 다시 확인한다. 파일 해시만 비교하는 것이 아니라 원시 로그에서 통계를 재계산하고 현재 intent에서 SRLG 결과와 보고서를 다시 만든 뒤 manifest의 bundle digest와 대조한다. 게시용 runtime N-1 요약은 attested archive를 대신하지 않으며, 검증된 run과 원본 evidence를 찾기 위한 provenance index로 취급한다.
 
 ```bash
 uv run telconet-evidence verify --project-root .

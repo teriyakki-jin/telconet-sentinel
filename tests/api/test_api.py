@@ -6,8 +6,10 @@ from fastapi.testclient import TestClient
 
 from telconet_sentinel.api import create_app
 from telconet_sentinel.config import load_topology
+from telconet_sentinel.configuration import candidate_runtime_configuration_fingerprint
 from telconet_sentinel.convergence import ConvergenceStore, SQLiteConvergenceStore
 from telconet_sentinel.failure_domain import load_failure_domains
+from telconet_sentinel.runtime_resilience import load_runtime_n1_published_evidence
 from telconet_sentinel.topology import Topology
 
 
@@ -69,6 +71,69 @@ def test_exposes_candidate_dual_homing_audit_and_metrics(
     assert response.json()["passes_n_minus_one"] is True
     assert "telconet_n1_candidate_design_pass 1" in metrics.text
     assert "telconet_n1_candidate_outages_total 0" in metrics.text
+
+
+def test_exposes_published_runtime_n1_metrics(
+    redundant_topology: Topology,
+) -> None:
+    root = Path(__file__).parents[2]
+    runtime_evidence = load_runtime_n1_published_evidence(
+        root / "evidence" / "runtime-n1-dashboard.json"
+    )
+    candidate = load_topology(root / "lab" / "intent-dual-homed.yml")
+    client = TestClient(
+        create_app(
+            redundant_topology,
+            experiment_evidence=_experiment_evidence(),
+            candidate_topology=candidate,
+            runtime_n1_evidence=runtime_evidence,
+            runtime_n1_configuration_sha256=(
+                candidate_runtime_configuration_fingerprint(root)
+            ),
+        )
+    )
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert "telconet_runtime_n1_pass 1" in response.text
+    assert 'telconet_runtime_n1_checks_total{result="passed"} 120' in response.text
+    assert 'telconet_runtime_n1_scenarios_total{kind="node"} 4' in response.text
+
+
+def test_runtime_n1_evidence_requires_candidate_topology(
+    redundant_topology: Topology,
+) -> None:
+    root = Path(__file__).parents[2]
+    runtime_evidence = load_runtime_n1_published_evidence(
+        root / "evidence" / "runtime-n1-dashboard.json"
+    )
+
+    with pytest.raises(ValueError, match="requires the candidate topology"):
+        create_app(
+            redundant_topology,
+            experiment_evidence=_experiment_evidence(),
+            runtime_n1_evidence=runtime_evidence,
+        )
+
+
+def test_runtime_n1_evidence_rejects_runtime_configuration_drift(
+    redundant_topology: Topology,
+) -> None:
+    root = Path(__file__).parents[2]
+    runtime_evidence = load_runtime_n1_published_evidence(
+        root / "evidence" / "runtime-n1-dashboard.json"
+    )
+    candidate = load_topology(root / "lab" / "intent-dual-homed.yml")
+
+    with pytest.raises(ValueError, match="runtime configuration does not match"):
+        create_app(
+            redundant_topology,
+            experiment_evidence=_experiment_evidence(),
+            candidate_topology=candidate,
+            runtime_n1_evidence=runtime_evidence,
+            runtime_n1_configuration_sha256="0" * 64,
+        )
 
 
 def test_exposes_baseline_and_candidate_transport_node_audits(

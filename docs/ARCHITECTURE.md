@@ -34,8 +34,10 @@ flowchart LR
     RUNBOOK --> CLAB
     CLAB --> RAW["timestamped experiment logs"]
     RAW --> EVIDENCE["recalculated JSON evidence"]
-    EVIDENCE --> MANIFEST["59-artifact evidence manifest"]
+    EVIDENCE --> MANIFEST["64-artifact evidence manifest"]
     MANIFEST --> ATTEST["CI archive provenance attestation"]
+    ATTEST --> SUMMARY["attested N-1 dashboard summary"]
+    SUMMARY --> METRICS
     EVIDENCE --> METRICS["FastAPI /metrics"]
     METRICS --> PROM["Prometheus scrape · 1s"]
     PROM --> RULES["simulation alert rules · 20s hold"]
@@ -68,6 +70,7 @@ The analysis path has seven explicit layers:
 - Runtime conformance is a fail-closed precondition for the live experiment; it does not modify router state.
 - The runtime N-1 runner is the privileged mutation boundary for the candidate lab. Its node and interface values come only from the validated plan, are checked again by the shell, and are passed as quoted arguments to `docker exec`.
 - Runtime N-1 observations must contain the exact planned scenario and access-node sets. Missing, duplicated, or extra observations fail closed.
+- The checked-in runtime N-1 dashboard summary is a provenance index for an attested main run, not a replacement for its raw archive. API startup requires its topology fingerprint, exact link/node fault matrix, and eight checks per scenario to match the current candidate intent.
 - The checked-in evidence manifest binds every report input and output after semantic recalculation; bounded reads and an exact inventory prevent unreviewed files from entering the bundle.
 - The E2E job has read-only repository permissions. A separate main-only job receives OIDC and attestation permissions after downloading the completed, size-bounded regular-file archive.
 - CI preloads FRR and Alpine by immutable multi-platform digest before containerlab resolves the historical topology image tags.

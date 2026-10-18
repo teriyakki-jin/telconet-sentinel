@@ -37,6 +37,11 @@ from .resilience import (
     render_node_resilience_metrics,
     render_resilience_metrics,
 )
+from .runtime_resilience import (
+    RuntimeN1PublishedEvidence,
+    render_runtime_n1_metrics,
+    validate_runtime_n1_published_topology,
+)
 from .service import IncidentService
 from .topology import Topology
 
@@ -304,11 +309,23 @@ def create_app(
     convergence_store: ConvergenceRepository | None = None,
     candidate_topology: Topology | None = None,
     failure_domains: FailureDomainCatalog | None = None,
+    runtime_n1_evidence: RuntimeN1PublishedEvidence | None = None,
+    runtime_n1_configuration_sha256: str | None = None,
 ) -> FastAPI:
     if experiment_evidence is not None:
         validate_experiment_evidence(experiment_evidence)
     if repeated_experiment_evidence is not None:
         validate_repeated_experiment_evidence(repeated_experiment_evidence)
+    if runtime_n1_evidence is not None:
+        if candidate_topology is None:
+            raise ValueError("runtime N-1 evidence requires the candidate topology")
+        if runtime_n1_configuration_sha256 is None:
+            raise ValueError("runtime N-1 evidence requires the runtime configuration")
+        validate_runtime_n1_published_topology(
+            runtime_n1_evidence,
+            candidate_topology,
+            runtime_n1_configuration_sha256,
+        )
     app = FastAPI(
         title="TelcoNet Sentinel",
         version="0.1.0",
@@ -360,6 +377,8 @@ def create_app(
             )
         if failure_domain_audit is not None:
             rendered += render_failure_domain_metrics(failure_domain_audit)
+        if runtime_n1_evidence is not None:
+            rendered += render_runtime_n1_metrics(runtime_n1_evidence)
         return PlainTextResponse(rendered, media_type="text/plain; version=0.0.4")
 
     @app.get("/api/topology")

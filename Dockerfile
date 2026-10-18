@@ -2,11 +2,14 @@ FROM python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    TELCONET_PROJECT_ROOT=/app \
     TELCONET_INTENT=/app/lab/intent.yml \
+    TELCONET_CANDIDATE_INTENT=/app/lab/intent-dual-homed.yml \
     TELCONET_DESIGN_CATALOG=/app/lab/designs.yml \
     TELCONET_FAILURE_DOMAINS=/app/lab/failure-domains.yml \
     TELCONET_EXPERIMENT=/app/evidence/bfd-comparison.json \
-    TELCONET_REPEATED_EXPERIMENT=/app/evidence/bfd-repeated-trials.json
+    TELCONET_REPEATED_EXPERIMENT=/app/evidence/bfd-repeated-trials.json \
+    TELCONET_RUNTIME_N1_EVIDENCE=/app/evidence/runtime-n1-dashboard.json
 
 WORKDIR /app
 
@@ -16,8 +19,11 @@ COPY lab/designs.yml ./lab/designs.yml
 COPY lab/failure-domains.yml ./lab/failure-domains.yml
 COPY lab/intent.yml ./lab/intent.yml
 COPY lab/intent-dual-homed.yml ./lab/intent-dual-homed.yml
+COPY lab/telconet-dual-homed.clab.yml ./lab/telconet-dual-homed.clab.yml
+COPY lab/frr ./lab/frr
 COPY evidence/bfd-comparison.json ./evidence/bfd-comparison.json
 COPY evidence/bfd-repeated-trials.json ./evidence/bfd-repeated-trials.json
+COPY evidence/runtime-n1-dashboard.json ./evidence/runtime-n1-dashboard.json
 
 RUN pip install --no-cache-dir . \
     && install -d -o 65532 -g 65532 /var/lib/telconet

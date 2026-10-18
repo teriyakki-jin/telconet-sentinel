@@ -1,5 +1,5 @@
 {
-  "artifact_count": 59,
+  "artifact_count": 64,
   "artifacts": [
     {
       "path": "docs/EXPERIMENT_REPORT.md",
@@ -278,6 +278,12 @@
       "size_bytes": 4945
     },
     {
+      "path": "evidence/runtime-n1-dashboard.json",
+      "role": "derived_evidence",
+      "sha256": "0d612f62a4040caf106f3b35f6d1ce6ddc6da49efaffbad1ed8b19a8f80cbfa5",
+      "size_bytes": 2108
+    },
+    {
       "path": "lab/designs.yml",
       "role": "configuration",
       "sha256": "ea9915bebd861020db2509a115ee1066fe12bb19234fb16e1a351351511588bf",
@@ -332,6 +338,24 @@
       "size_bytes": 75
     },
     {
+      "path": "lab/frr/dual-homed/core1.conf",
+      "role": "configuration",
+      "sha256": "5f305cdaa78530b9938f47aacb55ca54acd1bef2c1bb08af6dce8e88ec339f72",
+      "size_bytes": 1000
+    },
+    {
+      "path": "lab/frr/dual-homed/core2.conf",
+      "role": "configuration",
+      "sha256": "9f43c7322989f618ef463334b654d65b68ae353cb47afe5dda45a9a226c73ab4",
+      "size_bytes": 1000
+    },
+    {
+      "path": "lab/frr/dual-homed/service-host.conf",
+      "role": "configuration",
+      "sha256": "31c8cb14e59817a2dba5006370993f0e68c9dface7088aef44d81f889ab29908",
+      "size_bytes": 697
+    },
+    {
       "path": "lab/intent-dual-homed.yml",
       "role": "configuration",
       "sha256": "98f9263913bf23d7d7339735fc4b5b093db3b2b1defa51ddbfcb6c1109801cb1",
@@ -350,6 +374,12 @@
       "size_bytes": 384
     },
     {
+      "path": "lab/telconet-dual-homed.clab.yml",
+      "role": "configuration",
+      "sha256": "20732bc0be656b75140437e781da2f3e5ef8894482c6afb38f441fb7ec7c32c6",
+      "size_bytes": 3096
+    },
+    {
       "path": "lab/telconet.clab.yml",
       "role": "configuration",
       "sha256": "060d23c47783e790e003a29827fca2fecca0e4dfe3540f27e5ea5b5c50208c53",
@@ -357,7 +387,7 @@
     }
   ],
   "bundle": "telconet-portfolio-evidence",
-  "bundle_sha256": "d34a18e1b270763918b02dc18cf57a662d42851aab2fbfff466a337cc63054cc",
+  "bundle_sha256": "b66dda4f6a5787a73b8ce8ddb9f94490f34866abbcaff596b444aa2c43a30bb3",
   "configuration_sha256": "12926a3cdff3f5554aded09228aecdd81a6727398761e563fcff3fa363de97b3",
   "schema_version": 1
 }

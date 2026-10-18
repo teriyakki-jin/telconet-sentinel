@@ -34,6 +34,7 @@ from .failure_domain import topology_fingerprint
 from .fault import link_failure_scenarios, transport_node_failure_scenarios
 from .intent import NetworkIntent
 from .models import NodeRole
+from .topology import Topology
 from .yaml_loader import UniqueKeySafeLoader
 
 _MAX_YAML_BYTES = 1024 * 1024
@@ -183,6 +184,69 @@ class RuntimeN1Observation(BaseModel):
         return self
 
 
+class RuntimeN1PublishedScenario(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    scenario_id: str = Field(pattern=r"^(?:link|node):[a-z][a-z0-9-]{0,127}$")
+    kind: Literal["link", "node"]
+    passed: StrictBool
+
+    @model_validator(mode="after")
+    def validate_kind_matches_id(self) -> RuntimeN1PublishedScenario:
+        if not self.scenario_id.startswith(f"{self.kind}:"):
+            raise ValueError("scenario kind must match its id")
+        return self
+
+
+class RuntimeN1PublishedEvidence(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_version: StrictInt
+    source: Literal["github_actions_attested_runtime_n1"]
+    source_repository: Literal["teriyakki-jin/telconet-sentinel"]
+    source_ref: Literal["refs/heads/main"]
+    source_commit: str = Field(pattern=r"^[0-9a-f]{40}$")
+    workflow_run_id: StrictInt = Field(ge=1)
+    archive_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    source_evidence_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    plan_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    observation_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    topology_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    lab_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    runtime_configuration_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    passed_all: StrictBool
+    total_checks: StrictInt = Field(ge=1, le=1024)
+    passed_checks: StrictInt = Field(ge=0, le=1024)
+    failed_checks: StrictInt = Field(ge=0, le=1024)
+    scenarios: tuple[RuntimeN1PublishedScenario, ...] = Field(
+        min_length=1, max_length=64
+    )
+
+    @field_validator("schema_version")
+    @classmethod
+    def validate_schema_version(cls, value: int) -> int:
+        if value != 1:
+            raise ValueError("unsupported published runtime N-1 evidence version")
+        return value
+
+    @model_validator(mode="after")
+    def validate_consistency(self) -> RuntimeN1PublishedEvidence:
+        scenario_ids = [scenario.scenario_id for scenario in self.scenarios]
+        if len(scenario_ids) != len(set(scenario_ids)):
+            raise ValueError("published runtime scenario ids must be unique")
+        if self.total_checks != self.passed_checks + self.failed_checks:
+            raise ValueError("published runtime check totals are inconsistent")
+        if self.total_checks != len(self.scenarios) * 8:
+            raise ValueError("published runtime evidence requires eight checks per scenario")
+        every_scenario_passed = all(scenario.passed for scenario in self.scenarios)
+        if (self.failed_checks == 0) != every_scenario_passed:
+            raise ValueError("published runtime scenario and check results conflict")
+        expected_pass = self.failed_checks == 0
+        if self.passed_all != expected_pass:
+            raise ValueError("published runtime passed_all conflicts with results")
+        return self
+
+
 def _ensure_bounded_file(path: Path, label: str, limit: int) -> bytes:
     if path.is_symlink():
         raise ValueError(f"{label} must not be a symlink")
@@ -223,6 +287,77 @@ def load_runtime_n1_observation(path: Path) -> RuntimeN1Observation:
     return RuntimeN1Observation.model_validate(
         _load_json(path, "runtime N-1 observation")
     )
+
+
+def load_runtime_n1_published_evidence(path: Path) -> RuntimeN1PublishedEvidence:
+    return RuntimeN1PublishedEvidence.model_validate(
+        _load_json(path, "published runtime N-1 evidence")
+    )
+
+
+def validate_runtime_n1_published_topology(
+    evidence: RuntimeN1PublishedEvidence,
+    topology: Topology,
+    runtime_configuration_sha256: str,
+) -> None:
+    if topology_fingerprint(topology) != evidence.topology_sha256:
+        raise ValueError("published runtime N-1 evidence does not match candidate intent")
+    if runtime_configuration_sha256 != evidence.runtime_configuration_sha256:
+        raise ValueError(
+            "published runtime N-1 runtime configuration does not match current files"
+        )
+    expected_scenario_ids = {
+        scenario.id
+        for scenario in (
+            *link_failure_scenarios(topology),
+            *transport_node_failure_scenarios(topology),
+        )
+    }
+    published_scenario_ids = {
+        scenario.scenario_id for scenario in evidence.scenarios
+    }
+    if published_scenario_ids != expected_scenario_ids:
+        raise ValueError(
+            "published runtime N-1 scenario matrix does not match candidate intent"
+        )
+
+
+def render_runtime_n1_metrics(evidence: RuntimeN1PublishedEvidence) -> str:
+    kind_counts = {
+        kind: sum(scenario.kind == kind for scenario in evidence.scenarios)
+        for kind in ("link", "node")
+    }
+    lines = [
+        "# HELP telconet_runtime_n1_pass Whether the attested runtime N-1 matrix passed.",
+        "# TYPE telconet_runtime_n1_pass gauge",
+        f"telconet_runtime_n1_pass {1 if evidence.passed_all else 0}",
+        "# HELP telconet_runtime_n1_scenarios_total Runtime N-1 scenarios by kind.",
+        "# TYPE telconet_runtime_n1_scenarios_total gauge",
+        f'telconet_runtime_n1_scenarios_total{{kind="link"}} {kind_counts["link"]}',
+        f'telconet_runtime_n1_scenarios_total{{kind="node"}} {kind_counts["node"]}',
+        "# HELP telconet_runtime_n1_checks_total Runtime N-1 checks by result.",
+        "# TYPE telconet_runtime_n1_checks_total gauge",
+        f'telconet_runtime_n1_checks_total{{result="passed"}} {evidence.passed_checks}',
+        f'telconet_runtime_n1_checks_total{{result="failed"}} {evidence.failed_checks}',
+        "# HELP telconet_runtime_n1_scenario_pass Whether one runtime scenario passed.",
+        "# TYPE telconet_runtime_n1_scenario_pass gauge",
+    ]
+    lines.extend(
+        "telconet_runtime_n1_scenario_pass"
+        f'{{kind="{scenario.kind}",scenario_id="{scenario.scenario_id}"}} '
+        f"{1 if scenario.passed else 0}"
+        for scenario in evidence.scenarios
+    )
+    lines.extend(
+        (
+            "# HELP telconet_runtime_n1_evidence_info Attested runtime evidence identity.",
+            "# TYPE telconet_runtime_n1_evidence_info gauge",
+            "telconet_runtime_n1_evidence_info"
+            f'{{source_commit="{evidence.source_commit}",'
+            f'workflow_run="{evidence.workflow_run_id}"}} 1',
+        )
+    )
+    return "\n".join(lines) + "\n"
 
 
 def _mapping(value: object, label: str) -> Mapping[str, Any]:

@@ -7,6 +7,7 @@ services:
       TELCONET_DESIGN_CATALOG: /app/lab/designs.yml
       TELCONET_FAILURE_DOMAINS: /app/lab/failure-domains.yml
       TELCONET_REPEATED_EXPERIMENT: /app/evidence/bfd-repeated-trials.json
+      TELCONET_RUNTIME_N1_EVIDENCE: /app/evidence/runtime-n1-dashboard.json
       TELCONET_STATE_DB: /var/lib/telconet/convergence.sqlite3
     ports:
       - "127.0.0.1:18000:8000"
