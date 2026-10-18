@@ -20,12 +20,20 @@ def test_checked_in_manifest_verifies_every_portfolio_claim_input() -> None:
     result = verify_evidence_manifest(ROOT, MANIFEST)
 
     assert result["verified"] is True
-    assert result["artifact_count"] == 59
+    assert result["artifact_count"] == 64
     assert len(result["bundle_sha256"]) == 64
 
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     paths = {artifact["path"] for artifact in manifest["artifacts"]}
-    assert {"lab/designs.yml", "lab/intent-dual-homed.yml"} <= paths
+    assert {
+        "lab/designs.yml",
+        "lab/intent-dual-homed.yml",
+        "lab/telconet-dual-homed.clab.yml",
+        "lab/frr/dual-homed/core1.conf",
+        "lab/frr/dual-homed/core2.conf",
+        "lab/frr/dual-homed/service-host.conf",
+    } <= paths
+    assert "evidence/runtime-n1-dashboard.json" in paths
     roles = {artifact["role"] for artifact in manifest["artifacts"]}
     assert roles == {
         "configuration",
@@ -64,8 +72,8 @@ def test_verifier_rejects_manifest_with_duplicate_json_key(tmp_path: Path) -> No
     manifest = tmp_path / "manifest.json"
     manifest.write_text(
         MANIFEST.read_text(encoding="utf-8").replace(
-            '"artifact_count": 59,',
-            '"artifact_count": 59,\n  "artifact_count": 59,',
+            '"artifact_count": 64,',
+            '"artifact_count": 64,\n  "artifact_count": 64,',
             1,
         ),
         encoding="utf-8",

@@ -26,6 +26,7 @@ def _artifact_specs() -> tuple[tuple[str, str], ...]:
         "lab/intent-dual-homed.yml",
         "lab/runtime-expectations.yml",
         "lab/telconet.clab.yml",
+        "lab/telconet-dual-homed.clab.yml",
         "lab/frr/daemons",
         "lab/frr/access1/frr.conf",
         "lab/frr/access2/frr.conf",
@@ -33,6 +34,9 @@ def _artifact_specs() -> tuple[tuple[str, str], ...]:
         "lab/frr/agg2/frr.conf",
         "lab/frr/core1/frr.conf",
         "lab/frr/core2/frr.conf",
+        "lab/frr/dual-homed/core1.conf",
+        "lab/frr/dual-homed/core2.conf",
+        "lab/frr/dual-homed/service-host.conf",
     )
     raw_measurements = (
         "evidence/remote-blackhole-bfd.log",
@@ -47,6 +51,7 @@ def _artifact_specs() -> tuple[tuple[str, str], ...]:
         "evidence/bfd-comparison.json",
         "evidence/bfd-repeated-trials.json",
         "evidence/failure-domain-audit.json",
+        "evidence/runtime-n1-dashboard.json",
     )
     specs = (
         *((path, "configuration") for path in configuration),

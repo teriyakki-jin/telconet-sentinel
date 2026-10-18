@@ -25,6 +25,9 @@ def test_compose_declares_local_hardened_observability_services() -> None:
     assert services["api"]["environment"]["TELCONET_DESIGN_CATALOG"] == (
         "/app/lab/designs.yml"
     )
+    assert services["api"]["environment"]["TELCONET_RUNTIME_N1_EVIDENCE"] == (
+        "/app/evidence/runtime-n1-dashboard.json"
+    )
     assert "COPY lab/intent-dual-homed.yml ./lab/intent-dual-homed.yml" in (
         ROOT / "Dockerfile"
     ).read_text(encoding="utf-8")
@@ -32,6 +35,9 @@ def test_compose_declares_local_hardened_observability_services() -> None:
         ROOT / "Dockerfile"
     ).read_text(encoding="utf-8")
     assert "COPY lab/failure-domains.yml ./lab/failure-domains.yml" in (
+        ROOT / "Dockerfile"
+    ).read_text(encoding="utf-8")
+    assert "COPY evidence/runtime-n1-dashboard.json" in (
         ROOT / "Dockerfile"
     ).read_text(encoding="utf-8")
     assert "telconet-state:/var/lib/telconet" in services["api"]["volumes"]
@@ -62,7 +68,11 @@ def test_compose_declares_local_hardened_observability_services() -> None:
     assert "TELCONET_REPEATED_EXPERIMENT=/app/evidence/bfd-repeated-trials.json" in (
         dockerfile
     )
+    assert "TELCONET_PROJECT_ROOT=/app" in dockerfile
     assert "COPY evidence/bfd-repeated-trials.json" in dockerfile
+    assert "TELCONET_CANDIDATE_INTENT=/app/lab/intent-dual-homed.yml" in dockerfile
+    assert "COPY lab/telconet-dual-homed.clab.yml" in dockerfile
+    assert "COPY lab/frr ./lab/frr" in dockerfile
     assert "install -d -o 65532 -g 65532 /var/lib/telconet" in dockerfile
 
 
@@ -271,7 +281,8 @@ def test_grafana_provisions_n_minus_one_resilience_dashboard() -> None:
     )
 
     assert dashboard["uid"] == "telconet-n1-resilience"
-    assert dashboard["title"] == "TelcoNet Sentinel · N-1 Link Resilience"
+    assert dashboard["title"] == "TelcoNet Sentinel · N-1 Design & Runtime Resilience"
+    assert dashboard["version"] == 7
     queries = {
         target["expr"]
         for panel in dashboard["panels"]
@@ -287,6 +298,28 @@ def test_grafana_provisions_n_minus_one_resilience_dashboard() -> None:
     assert "telconet_n1_node_design_pass" in queries
     assert "telconet_n1_node_candidate_design_pass" in queries
     assert "telconet_n1_node_candidate_outages_total" in queries
+    assert "telconet_runtime_n1_pass" in queries
+    assert 'telconet_runtime_n1_checks_total{result="passed"}' in queries
+    assert 'telconet_runtime_n1_checks_total{result="failed"}' in queries
+    assert "sum(telconet_runtime_n1_scenario_pass)" in queries
+    assert "telconet_runtime_n1_scenario_pass" in queries
+    runtime_table = next(
+        panel for panel in dashboard["panels"] if panel["title"] == "Runtime · scenario matrix"
+    )
+    assert runtime_table["type"] == "table"
+    assert runtime_table["gridPos"]["h"] >= 18
+    assert runtime_table["fieldConfig"]["defaults"]["custom"]["cellOptions"] == {
+        "type": "auto"
+    }
+    result_override = next(
+        override
+        for override in runtime_table["fieldConfig"]["overrides"]
+        if override["matcher"] == {"id": "byName", "options": "Result"}
+    )
+    assert {property_["id"] for property_ in result_override["properties"]} >= {
+        "mappings",
+        "custom.cellOptions",
+    }
 
 
 def test_grafana_provisions_shared_risk_resilience_dashboard() -> None:

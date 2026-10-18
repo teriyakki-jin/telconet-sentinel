@@ -5,12 +5,16 @@ from pathlib import Path
 
 from .api import create_app
 from .config import load_topology
+from .configuration import candidate_runtime_configuration_fingerprint
 from .convergence import ConvergenceStore, SQLiteConvergenceStore
 from .failure_domain import load_failure_domains, validate_failure_domain_design
 from .intent import load_design_catalog
 from .metrics import load_experiment_evidence, load_repeated_experiment_evidence
+from .runtime_resilience import load_runtime_n1_published_evidence
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(
+    os.environ.get("TELCONET_PROJECT_ROOT", Path(__file__).resolve().parents[2])
+)
 INTENT_PATH = Path(os.environ.get("TELCONET_INTENT", PROJECT_ROOT / "lab" / "intent.yml"))
 CANDIDATE_INTENT_PATH = Path(
     os.environ.get(
@@ -41,6 +45,12 @@ REPEATED_EXPERIMENT_PATH = Path(
         PROJECT_ROOT / "evidence" / "bfd-repeated-trials.json",
     )
 )
+RUNTIME_N1_EVIDENCE_PATH = Path(
+    os.environ.get(
+        "TELCONET_RUNTIME_N1_EVIDENCE",
+        PROJECT_ROOT / "evidence" / "runtime-n1-dashboard.json",
+    )
+)
 
 experiment_evidence = (
     load_experiment_evidence(EXPERIMENT_PATH) if EXPERIMENT_PATH.is_file() else None
@@ -49,6 +59,10 @@ repeated_experiment_evidence = (
     load_repeated_experiment_evidence(REPEATED_EXPERIMENT_PATH)
     if REPEATED_EXPERIMENT_PATH.is_file()
     else None
+)
+runtime_n1_evidence = load_runtime_n1_published_evidence(RUNTIME_N1_EVIDENCE_PATH)
+runtime_n1_configuration_sha256 = candidate_runtime_configuration_fingerprint(
+    PROJECT_ROOT
 )
 state_database = os.environ.get("TELCONET_STATE_DB")
 convergence_store = (
@@ -80,4 +94,6 @@ app = create_app(
     convergence_store,
     candidate_topology=candidate_topology,
     failure_domains=failure_domains,
+    runtime_n1_evidence=runtime_n1_evidence,
+    runtime_n1_configuration_sha256=runtime_n1_configuration_sha256,
 )

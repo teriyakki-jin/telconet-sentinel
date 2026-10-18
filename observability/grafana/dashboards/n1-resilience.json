@@ -130,7 +130,7 @@
       "id": 9,
       "options": {
         "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
-        "content": "### Baseline → candidate\n\n**Baseline:** 10 links · 1 OUTAGE.  \n**Candidate:** 11 links · 0 OUTAGE.  \n**Lab E2E:** route metric 30 → 70 → 30; both clients reached the service after failover.",
+        "content": "### Baseline → candidate → runtime\n\n**Baseline:** 10 links · 1 OUTAGE.  \n**Candidate model:** 11 links + 4 transport nodes · 0 OUTAGE.  \n**Runtime matrix:** 15/15 scenarios · 120/120 checks.",
         "mode": "markdown"
       },
       "title": "Design change and evidence",
@@ -185,7 +185,7 @@
       "id": 13,
       "options": {
         "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
-        "content": "### Node-failure scope\n\n**Audit:** `agg1` · `agg2` · `core1` · `core2`  \n**Lab:** isolate `core1` · **30 → 140 → 30** · clients A/B reachable",
+        "content": "### Node-failure scope\n\n`agg1` · `agg2` · `core1` · `core2`의 모든 transit interface를 시나리오별로 격리한다. 각 실험 후 7개 FRR 노드의 OSPF adjacency가 전부 `Full`로 복구되어야 다음 장애를 시작한다.",
         "mode": "markdown"
       },
       "title": "Node-isolation experiment",
@@ -193,8 +193,79 @@
     },
     {
       "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [{"options": {"0": {"color": "red", "text": "FAILED"}, "1": {"color": "green", "text": "15/15 PASS"}}, "type": "value"}],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 15},
+      "id": 14,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_runtime_n1_pass", "instant": true, "legendFormat": "runtime", "range": false, "refId": "A"}],
+      "title": "Runtime · N-1 status",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 15}]}}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 15},
+      "id": 15,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "sum(telconet_runtime_n1_scenario_pass)", "instant": true, "legendFormat": "of 15 passed", "range": false, "refId": "A"}],
+      "title": "Runtime · scenarios",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "orange", "value": null}, {"color": "green", "value": 120}]}}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 15},
+      "id": 16,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_runtime_n1_checks_total{result=\"passed\"}", "instant": true, "legendFormat": "of 120 passed", "range": false, "refId": "A"}],
+      "title": "Runtime · checks passed",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 15},
+      "id": 17,
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "value_and_name", "wideLayout": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_runtime_n1_checks_total{result=\"failed\"}", "instant": true, "legendFormat": "failed", "range": false, "refId": "A"}],
+      "title": "Runtime · checks failed",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {"decimals": 0, "custom": {"cellOptions": {"type": "auto"}}},
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "Result"},
+            "properties": [
+              {"id": "mappings", "value": [{"options": {"0": {"color": "red", "text": "FAIL"}, "1": {"color": "green", "text": "PASS"}}, "type": "value"}]},
+              {"id": "color", "value": {"mode": "thresholds"}},
+              {"id": "thresholds", "value": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}},
+              {"id": "custom.cellOptions", "value": {"type": "color-text"}}
+            ]
+          }
+        ]
+      },
+      "gridPos": {"h": 18, "w": 24, "x": 0, "y": 20},
+      "id": 18,
+      "options": {"cellHeight": "sm", "footer": {"countRows": true, "enablePagination": false, "fields": "", "reducer": ["count"], "show": true}, "showHeader": true},
+      "targets": [{"editorMode": "code", "expr": "telconet_runtime_n1_scenario_pass", "format": "table", "instant": true, "legendFormat": "{{scenario_id}}", "range": false, "refId": "A"}],
+      "title": "Runtime · scenario matrix",
+      "transformations": [{"id": "organize", "options": {"excludeByName": {"Time": true, "__name__": true, "instance": true, "job": true}, "indexByName": {"scenario_id": 0, "kind": 1, "Value": 2}, "renameByName": {"Value": "Result", "kind": "Fault kind", "scenario_id": "Scenario"}}}],
+      "type": "table"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
       "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 0}, "overrides": []},
-      "gridPos": {"h": 12, "w": 15, "x": 0, "y": 15},
+      "gridPos": {"h": 12, "w": 15, "x": 0, "y": 38},
       "id": 5,
       "options": {"cellHeight": "sm", "footer": {"countRows": false, "enablePagination": false, "fields": "", "reducer": ["sum"], "show": false}, "showHeader": true},
       "targets": [
@@ -222,7 +293,7 @@
       "type": "table"
     },
     {
-      "gridPos": {"h": 12, "w": 9, "x": 15, "y": 15},
+      "gridPos": {"h": 12, "w": 9, "x": 15, "y": 38},
       "id": 6,
       "options": {
         "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
@@ -240,7 +311,7 @@
   "time": {"from": "now-15m", "to": "now"},
   "timepicker": {},
   "timezone": "browser",
-  "title": "TelcoNet Sentinel · N-1 Link Resilience",
+  "title": "TelcoNet Sentinel · N-1 Design & Runtime Resilience",
   "uid": "telconet-n1-resilience",
-  "version": 4
+  "version": 7
 }
