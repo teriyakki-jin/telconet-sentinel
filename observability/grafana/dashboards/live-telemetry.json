@@ -171,7 +171,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "min(telconet_ospf_neighbor_full)",
+          "expr": "(min(telconet_ospf_neighbor_full) and on() (min(telconet_router_collection_success) == 1)) or on() vector(-1)",
           "instant": true,
           "legendFormat": "adjacencies",
           "range": false,
@@ -222,7 +222,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "min(telconet_bfd_peer_up * on(node,peer,interface) (telconet_bfd_peer_configured == 1))",
+          "expr": "(min(telconet_bfd_peer_up * on(node,peer,interface) (telconet_bfd_peer_configured == 1)) and on() (min(telconet_router_collection_success) == 1)) or on() vector(-1)",
           "instant": true,
           "legendFormat": "peers",
           "range": false,

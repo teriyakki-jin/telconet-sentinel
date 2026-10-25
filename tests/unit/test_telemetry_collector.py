@@ -412,6 +412,58 @@ def test_run_collector_once_collects_and_publishes_exactly_once(
     assert published == [snapshot]
 
 
+def test_run_collector_retries_transient_publish_failures_in_continuous_mode(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    binding = _binding(_target())
+    snapshot = _failed_snapshot()
+    publish_attempts = 0
+    sleep_calls = 0
+
+    class StopCollector(Exception):
+        pass
+
+    class FakeApi:
+        def publish(self, _snapshot: TelemetrySnapshot) -> dict[str, bool]:
+            nonlocal publish_attempts
+            publish_attempts += 1
+            if publish_attempts == 1:
+                raise RuntimeError("telemetry API is unavailable")
+            return {"accepted": True}
+
+    def stop_after_second_iteration(_delay: float) -> None:
+        nonlocal sleep_calls
+        sleep_calls += 1
+        if sleep_calls == 2:
+            raise StopCollector
+
+    monkeypatch.setattr(collector, "collect_snapshot", lambda _: snapshot)
+    monkeypatch.setattr(collector.time, "sleep", stop_after_second_iteration)
+
+    with pytest.raises(StopCollector):
+        collector.run_collector(binding, FakeApi(), once=False, interval_seconds=1)
+
+    assert publish_attempts == 2
+    assert "telemetry publish failed: telemetry API is unavailable" in capsys.readouterr().err
+
+
+def test_run_collector_once_reports_publish_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    binding = _binding(_target())
+    snapshot = _failed_snapshot()
+
+    class FakeApi:
+        def publish(self, _snapshot: TelemetrySnapshot) -> dict[str, bool]:
+            raise RuntimeError("telemetry API is unavailable")
+
+    monkeypatch.setattr(collector, "collect_snapshot", lambda _: snapshot)
+
+    with pytest.raises(RuntimeError, match="telemetry API is unavailable"):
+        collector.run_collector(binding, FakeApi(), once=True, interval_seconds=1)
+
+
 def test_cli_exposes_only_config_api_once_and_interval_options() -> None:
     parser = collector._build_parser()
     option_strings = {

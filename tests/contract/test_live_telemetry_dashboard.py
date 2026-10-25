@@ -48,10 +48,14 @@ def test_live_telemetry_dashboard_has_operational_summary_cards() -> None:
     assert _queries(panels["HEALTHY ROUTERS"]) == {
         "sum(telconet_router_collection_success)"
     }
-    assert _queries(panels["OSPF FULL"]) == {"min(telconet_ospf_neighbor_full)"}
+    assert _queries(panels["OSPF FULL"]) == {
+        "(min(telconet_ospf_neighbor_full) and on() "
+        "(min(telconet_router_collection_success) == 1)) or on() vector(-1)"
+    }
     assert _queries(panels["BFD STATUS"]) == {
-        "min(telconet_bfd_peer_up * on(node,peer,interface) "
-        "(telconet_bfd_peer_configured == 1))"
+        "(min(telconet_bfd_peer_up * on(node,peer,interface) "
+        "(telconet_bfd_peer_configured == 1)) and on() "
+        "(min(telconet_router_collection_success) == 1)) or on() vector(-1)"
     }
     assert _queries(panels["ACCESS1 ROUTE"]) == {
         'telconet_selected_route_metric{node="access1"} or on() vector(-1)'

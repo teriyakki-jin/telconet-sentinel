@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -359,14 +360,20 @@ def run_collector(
     while True:
         started = time.monotonic()
         snapshot = collect_snapshot(binding)
-        api.publish(snapshot)
-        print(
-            f"published telemetry snapshot {snapshot.snapshot_id} "
-            f"for {len(snapshot.routers)} routers",
-            flush=True,
-        )
-        if once:
-            return
+        try:
+            api.publish(snapshot)
+        except RuntimeError as exc:
+            if once:
+                raise
+            print(f"telemetry publish failed: {exc}; retrying", file=sys.stderr, flush=True)
+        else:
+            print(
+                f"published telemetry snapshot {snapshot.snapshot_id} "
+                f"for {len(snapshot.routers)} routers",
+                flush=True,
+            )
+            if once:
+                return
         elapsed = time.monotonic() - started
         time.sleep(max(0.0, interval_seconds - elapsed))
 
