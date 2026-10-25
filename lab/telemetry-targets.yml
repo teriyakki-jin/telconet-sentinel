@@ -1,0 +1,16 @@
+version: 1
+poll_interval_seconds: 1
+service_prefix: 10.20.0.0/24
+routers:
+  - node: access1
+    container: clab-telconet-sentinel-access1
+  - node: access2
+    container: clab-telconet-sentinel-access2
+  - node: agg1
+    container: clab-telconet-sentinel-agg1
+  - node: agg2
+    container: clab-telconet-sentinel-agg2
+  - node: core1
+    container: clab-telconet-sentinel-core1
+  - node: core2
+    container: clab-telconet-sentinel-core2

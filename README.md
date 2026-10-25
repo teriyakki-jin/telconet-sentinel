@@ -1,6 +1,6 @@
 # TelcoNet Sentinel
 
-> OSPF 경로 설계부터 BFD 장애 탐지, N-1·SRLG 감사, 운영 대시보드까지 하나의 재현 가능한 랩으로 연결한 네트워크 복원력 프로젝트
+> OSPF 경로 설계부터 BFD 장애 탐지, N-1·SRLG 감사, 실시간 텔레메트리까지 하나의 재현 가능한 랩으로 연결한 Network Resilience & Telemetry Lab
 
 [![validate](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/validate.yml/badge.svg)](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/validate.yml)
 [![containerlab E2E](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/lab-e2e.yml/badge.svg)](https://github.com/teriyakki-jin/telconet-sentinel/actions/workflows/lab-e2e.yml)
@@ -9,7 +9,7 @@
 
 이 프로젝트는 OSPF와 BFD 명령어를 따라 해본 기록이 아니다. Access–Aggregation–Core 망을 직접 설계하고, 장애 탐지부터 우회 경로 수렴과 서비스 복구까지 실제 FRR 환경에서 확인한 개인 프로젝트다.
 
-FRRouting 라우터 6대를 containerlab으로 구성하고, 링크 carrier는 살아 있지만 패킷만 사라지는 원격 블랙홀을 주입했다. OSPF 단독 구성과 BFD 연동 구성을 반복 비교한 뒤 링크·노드 N-1과 SRLG 분석으로 범위를 넓혔다. 결과는 원시 로그에서 다시 계산하며 Prometheus와 Grafana에서 같은 상태를 확인할 수 있다.
+FRRouting 라우터 6대를 containerlab으로 구성하고, 링크 carrier는 살아 있지만 패킷만 사라지는 원격 블랙홀을 주입했다. OSPF 단독 구성과 BFD 연동 구성을 반복 비교한 뒤 링크·노드 N-1과 SRLG 분석으로 범위를 넓혔다. 별도의 호스트 수집기는 여섯 라우터의 인터페이스·OSPF·BFD·서비스 경로를 1초 주기로 읽어 현재 상태를 보여준다. 실험 결과는 원시 로그에서 다시 계산하고, 운영 상태는 Prometheus와 Grafana에서 확인한다.
 
 > 이 저장소는 개인 학습용 로컬 시뮬레이션이다. 실제 통신사 망 정보나 운영 데이터는 사용하지 않았으며, 모든 수치는 이 랩의 토폴로지·설정·측정 방식에서 얻은 관측값이다.
 
@@ -22,7 +22,7 @@ FRRouting 라우터 6대를 containerlab으로 구성하고, 링크 carrier는 �
 | 실험 preflight | OSPF neighbor·RIB/FIB·BFD timer를 intent와 비교하고 drift 시 장애 주입 차단 |
 | 측정 | BFD·OSPF·RIB·ICMP 완료 조건, monotonic/epoch timestamp 원시 로그 |
 | 복원력 감사 | 링크 11개·전송 노드 4개 N-1 모델링, 실제 FRR 15개 장애·120개 조건 대조, 선언형 SRLG 분석 |
-| 운영 가시성 | FastAPI, Prometheus metrics·alert rule, Grafana dashboard |
+| 운영 가시성 | 6-router typed telemetry, bounded SQLite, Prometheus metrics·alert rule, Grafana dashboard |
 | 재현성 | 42개 원시 로그 재계산, 64개 artifact manifest, 설정 fingerprint, CI E2E provenance attestation |
 
 처음 보는 경우에는 [핵심 결과](#핵심-결과) → [OSPF 망 설계](#ospf-망-설계) → [실험 방법](#실험-방법) 순서로 읽으면 된다. 결과에 대한 기술적 해석은 [분석 결과 보고서](docs/ANALYSIS_REPORT.md), 수치의 출처와 무결성은 [자동 생성 실험 보고서](docs/EXPERIMENT_REPORT.md)에서 확인할 수 있다.
@@ -47,6 +47,7 @@ FRRouting 라우터 6대를 containerlab으로 구성하고, 링크 carrier는 �
 | 4. 수렴 과정 | 장애부터 data plane 복구까지 어떤 완료 조건을 확인해야 하는가 | BFD·OSPF·RIB·ICMP 조건을 단계별로 검증 |
 | 5. 설계 복원력 | 모든 단일 링크·전송 노드 장애를 우회할 수 있는가 | 모델 15개 시나리오와 FRR 런타임 120개 조건 모두 통과 |
 | 6. 공유 위험 | N-1을 통과한 설계도 복합 장애에서 안전한가 | `service-entry` SRLG에서 outage 확인 |
+| 7. 운영 가시성 | 지금 어떤 링크·인접 관계·경로가 선택됐는가 | 6대 FRR의 상태를 typed snapshot으로 수집해 topology·traffic·drop·route dashboard에 표시 |
 
 즉, 이 프로젝트의 핵심은 “BFD가 빠르다”에서 끝나지 않는다. 빠른 탐지, 올바른 경로 설계, 실제 도달성, 공유 위험을 같은 실험 체계 안에서 연결했다.
 
@@ -239,9 +240,12 @@ flowchart LR
     MATRIX --> RAW
     FAULT --> OBSERVE["BFD · OSPF · RIB · ICMP"]
     OBSERVE --> RAW["timestamped raw logs"]
+    LAB --> TELEMETRY["host telemetry collector · 1s"]
+    TELEMETRY --> SNAPSHOTS["validated typed snapshots"]
     RAW --> EVIDENCE["recalculated evidence"]
     EVIDENCE --> REPORT["traceable experiment report"]
     EVIDENCE --> API["FastAPI · SQLite · /metrics"]
+    SNAPSHOTS --> API
     AUDIT --> REPORT
     AUDIT --> API
     API --> PROM["Prometheus"]
@@ -258,9 +262,13 @@ flowchart LR
 | convergence collector | FRR JSON과 ICMP를 monotonic clock으로 수집 |
 | `runtime_conformance.py` | 장애 전 FRR snapshot을 intent·실험 profile과 비교하고 실행 여부 판정 |
 | `runtime_resilience.py` | intent의 N-1 결과를 실제 인터페이스 장애 plan으로 변환하고 120개 관측 조건 대조 |
+| `telemetry_collector.py` | 고정된 6대 FRR에서 인터페이스·OSPF·BFD·서비스 경로를 allowlist 명령으로 수집 |
+| `telemetry_config.py` | 수집 대상과 intent·containerlab을 결합하고 topology fingerprint·허용 인터페이스 검증 |
+| `telemetry_store.py` | 검증된 최근 telemetry snapshot 120개를 메모리 또는 SQLite에 제한 보관 |
+| `telemetry_metrics.py` | 현재 snapshot을 bounded-label Prometheus metrics로 변환 |
 | `report.py` | 측정 evidence와 모델 감사를 검증해 재생성 가능한 Markdown 보고서 작성 |
 
-링크·노드·SRLG 분석은 같은 경로 계산 코드를 사용한다. API는 Docker socket이나 container 명령에 접근하지 않고, 수집기가 전송한 typed event와 계산된 결과만 저장한다. 자세한 경계는 [시스템 아키텍처 문서](docs/ARCHITECTURE.md)에서 설명한다.
+링크·노드·SRLG 분석은 같은 경로 계산 코드를 사용한다. API는 Docker socket이나 container 명령에 접근하지 않고, 호스트 수집기가 전송한 typed event와 telemetry snapshot, 계산된 결과만 저장한다. 자세한 경계는 [시스템 아키텍처 문서](docs/ARCHITECTURE.md)와 [운영 텔레메트리 문서](docs/TELEMETRY.md)에서 설명한다.
 
 ## 실행
 
@@ -275,12 +283,41 @@ docker compose up -d --build
 | Network overview | `http://127.0.0.1:3000/d/telconet-network-overview` |
 | BFD 반복 비교 | `http://127.0.0.1:3000/d/telconet-bfd-repeated-trials` |
 | Live convergence | `http://127.0.0.1:3000/d/telconet-live-convergence` |
+| Live network telemetry | `http://127.0.0.1:3000/d/telconet-live-telemetry` |
 | N-1 resilience | `http://127.0.0.1:3000/d/telconet-n1-resilience` |
 | Shared-risk resilience | `http://127.0.0.1:3000/d/telconet-srlg-resilience` |
 | Prometheus | `http://127.0.0.1:9090` |
 | API docs | `http://127.0.0.1:18000/docs` |
 
 모든 포트는 loopback에만 연다. Grafana dashboard와 datasource는 파일로 provisioning하고 anonymous read-only viewer로 실행한다.
+
+### Live telemetry
+
+대시보드 스택과 containerlab은 따로 실행한다. 먼저 위 `docker compose up -d --build` 명령으로 API·Prometheus·Grafana를 올린다.
+
+Linux 또는 WSL2에서 baseline lab을 배포한다.
+
+```bash
+sudo containerlab deploy --topo lab/telconet.clab.yml
+```
+
+같은 호스트에서 수집기를 실행하면 1초 간격으로 계속 snapshot을 전송한다. 중지는 `Ctrl+C`다.
+
+```bash
+uv run telconet-telemetry --config lab/telemetry-targets.yml --api-url http://127.0.0.1:18000
+```
+
+한 번만 수집해 연결과 화면을 확인하려면 다음 스크립트를 실행한다.
+
+```bash
+bash scenarios/telemetry_demo.sh
+```
+
+수집이 시작되면 [Live Network Telemetry](http://127.0.0.1:3000/d/telconet-live-telemetry)에서 topology, selected route, OSPF·BFD 상태, 인터페이스 traffic·drop을 확인할 수 있다. 이 1초 telemetry는 현재 상태를 보기 위한 운영 관측이며, sub-second 수렴 근거는 아니다. 수렴 시간은 별도의 100ms collector가 남긴 원본 이벤트 timestamp로 계산한다.
+
+![6대 FRR 토폴로지와 OSPF, BFD, 경로, 인터페이스 상태를 함께 보여주는 Live Network Telemetry](docs/assets/grafana-live-telemetry.png)
+
+캡처 시점에는 라우터 랩이 연결되지 않아 topology inventory만 표시되고 OSPF·BFD·경로·인터페이스 값은 `UNKNOWN`이다. 수집 실패를 정상이나 장애로 단정하지 않는 화면 동작을 그대로 남겼다. 랩과 수집기가 연결되면 같은 패널에 실제 neighbor, selected route, interface state와 traffic이 채워진다.
 
 ```bash
 docker compose down
@@ -318,9 +355,9 @@ Live E2E는 장애를 주입하기 전에 `runtime-conformance.json`을 생성�
 
 | 계층 | 확인하는 것 |
 |---|---|
-| Unit | intent 검증, fault engine, path cost, OSPF/BFD 파싱, N-1·SRLG 계산, SQLite 보존성 |
-| API | 제한된 입력 모델, 감사 결과, event 조회, 승인 상태, Prometheus metrics |
-| Contract | intent–containerlab 링크, FRR 설정, dashboard, alert rule, E2E workflow 일치 |
+| Unit | intent 검증, fault engine, path cost, OSPF/BFD·telemetry 파싱, N-1·SRLG 계산, SQLite 보존성 |
+| API | 제한된 event·telemetry 입력, 감사 결과, 최신 상태 조회, 승인 상태, Prometheus metrics |
+| Contract | intent–containerlab 링크, FRR 설정, telemetry runtime, dashboard, alert rule, E2E workflow 일치 |
 | Integration | 원시 로그 재계산, runtime conformance, configuration fingerprint, 보고서 freshness·provenance |
 | Lab E2E | 실제 FRR blackhole 수렴, 서비스 이중화, 링크 11개·전송 노드 4개 격리, 120개 route·ICMP 조건 |
 | Static·Security | Ruff, strict mypy, Bash syntax, CodeQL |
@@ -336,6 +373,8 @@ Live E2E는 장애를 주입하기 전에 `runtime-conformance.json`을 생성�
 - OSPF authentication, 장기 부하, 장비 vendor 간 interoperability는 검증하지 않았다.
 - Prometheus alert는 로컬 상태 지속 여부를 확인하며 Alertmanager와 on-call 연동은 포함하지 않는다.
 - SQLite는 최근 수렴 run 20개만 보관하며 장기 시계열 저장소가 아니다.
+- 운영 telemetry는 호스트가 `docker exec`로 6대 FRR을 순차 조회하는 1초 polling 방식이다. gNMI streaming이나 상용 NMS 수집 경로를 구현한 것은 아니다.
+- API의 telemetry SQLite는 최근 snapshot 120개만 보관한다. 장기 시계열은 1일 retention으로 실행하는 로컬 Prometheus 범위에 한정된다.
 
 ## 저장소와 문서
 
@@ -355,6 +394,7 @@ telconet-sentinel/
 - [SRLG·Failure Domain 설계 감사](docs/SRLG_DESIGN_AUDIT.md)
 - [Intent schema와 fault model](docs/INTENT_MODEL.md)
 - [시스템 아키텍처와 신뢰 경계](docs/ARCHITECTURE.md)
+- [운영 텔레메트리 수집·지표·실행 방법](docs/TELEMETRY.md)
 - [Intent–Runtime 정합성 검사](docs/RUNTIME_CONFORMANCE.md)
 - [실험 분석 결과 보고서](docs/ANALYSIS_REPORT.md)
 - [재생성 가능한 실험 보고서](docs/EXPERIMENT_REPORT.md)

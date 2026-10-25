@@ -9,7 +9,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     TELCONET_FAILURE_DOMAINS=/app/lab/failure-domains.yml \
     TELCONET_EXPERIMENT=/app/evidence/bfd-comparison.json \
     TELCONET_REPEATED_EXPERIMENT=/app/evidence/bfd-repeated-trials.json \
-    TELCONET_RUNTIME_N1_EVIDENCE=/app/evidence/runtime-n1-dashboard.json
+    TELCONET_RUNTIME_N1_EVIDENCE=/app/evidence/runtime-n1-dashboard.json \
+    TELCONET_TELEMETRY_TARGETS=/app/lab/telemetry-targets.yml \
+    TELCONET_TELEMETRY_CLAB=/app/lab/telconet.clab.yml \
+    TELCONET_TELEMETRY_DB=/var/lib/telconet/telemetry.sqlite3
 
 WORKDIR /app
 
@@ -19,6 +22,8 @@ COPY lab/designs.yml ./lab/designs.yml
 COPY lab/failure-domains.yml ./lab/failure-domains.yml
 COPY lab/intent.yml ./lab/intent.yml
 COPY lab/intent-dual-homed.yml ./lab/intent-dual-homed.yml
+COPY lab/telemetry-targets.yml ./lab/telemetry-targets.yml
+COPY lab/telconet.clab.yml ./lab/telconet.clab.yml
 COPY lab/telconet-dual-homed.clab.yml ./lab/telconet-dual-homed.clab.yml
 COPY lab/frr ./lab/frr
 COPY evidence/bfd-comparison.json ./evidence/bfd-comparison.json

@@ -17,6 +17,13 @@ flowchart LR
     API --> STORE[("SQLite · bounded recent runs")]
     CATALOG["designs.yml"] --> INTENT["versioned intent YAML"]
     INTENT --> SCHEMA["strict Pydantic schema"]
+    TARGETS["telemetry-targets.yml"] --> BINDING["validated topology binding"]
+    INTENT --> BINDING
+    BINDING --> TELEMETRY["host telemetry collector · 1s poll"]
+    CLAB -->|"fixed docker exec"| TELEMETRY
+    TELEMETRY -->|"typed snapshots"| API
+    BINDING --> API
+    API --> TELEMETRY_STORE[("SQLite · latest 120 snapshots")]
     SCHEMA --> GRAPH["validated topology graph"]
     GRAPH --> IMPACT["cost-aware impact analysis"]
     GRAPH --> FACTORY["typed fault scenario factories"]
@@ -58,6 +65,19 @@ The analysis path has seven explicit layers:
 
 `lab/designs.yml` declares which intent is the historical baseline and which is a candidate. This sidecar keeps the relationship explicit without changing `lab/intent.yml`, whose bytes are part of the checked-in 40-trial evidence fingerprint.
 
+## Operational telemetry path
+
+운영 telemetry는 장애 실험 evidence와 별도 경로로 다룬다. 두 경로가 같은 FRR 상태를 보더라도 목적과 시간 해상도가 다르기 때문이다.
+
+1. `telemetry-targets.yml`, baseline intent, baseline containerlab topology를 결합해 수집 가능한 6대 router와 interface를 고정한다.
+2. 세 설정 파일의 SHA-256으로 topology fingerprint를 만들고 collector와 API가 같은 binding을 쓰는지 확인한다.
+3. 호스트 collector가 코드에 고정된 `docker exec` 명령으로 interface counter·OSPF neighbor·BFD peer·서비스 경로를 읽는다.
+4. router별 결과를 strict `TelemetrySnapshot`으로 만들고 API에 전송한다. 한 router의 조회가 실패하면 부분 값 대신 해당 router 전체를 `unknown`으로 표시한다.
+5. API는 router 집합, interface, service prefix, fingerprint, timestamp 순서를 다시 검증한 뒤 최근 120개 snapshot만 SQLite에 보관한다.
+6. `/metrics`는 마지막 snapshot을 bounded-label metric으로 변환한다. Prometheus가 1초마다 scrape하고 Grafana의 built-in panel이 topology와 상태를 표시한다.
+
+이 1초 경로는 현재 상태와 변화 추세를 확인하기 위한 운영 관측이다. BFD 탐지나 ICMP 복구의 sub-second 시간은 100ms live convergence collector가 남긴 monotonic event timestamp로만 계산한다. 자세한 metric과 실행 절차는 [TELEMETRY.md](TELEMETRY.md)에 정리했다.
+
 ## Trust boundaries
 
 - The API accepts `event_type`, `link_id`, and an optional timestamp.
@@ -65,7 +85,10 @@ The analysis path has seven explicit layers:
 - Only `restore_link` is allowed in Phase 1.
 - The Phase 1 approval endpoint has no operator identity; it changes local typed state only.
 - The local runbook owns privileged lab commands and is not invoked by the API.
-- The host collector owns `docker exec`, reads FRR JSON and continuous ICMP, and sends only typed event fields to the API.
+- The 100ms convergence collector owns its `docker exec`, reads FRR JSON and continuous ICMP, and sends only typed event fields to the API.
+- The 1s telemetry collector is a separate host process. Its inventory is fixed to the six baseline routers and its Docker command arguments are constructed from an allowlist; neither its CLI nor the API accepts an arbitrary command.
+- Telemetry ingestion requires the exact server-side topology fingerprint and rejects routers, interfaces, route prefixes, fields, or older timestamps outside that binding.
+- A failed telemetry collection is represented as `unknown`, not healthy or down. SQLite retains only the latest 120 validated snapshots.
 - The E2E runner captures OSPF neighbor, RIB/FIB route, and BFD JSON before fault injection. The conformance process reads only bounded local files and emits per-check expected/actual evidence.
 - Runtime conformance is a fail-closed precondition for the live experiment; it does not modify router state.
 - The runtime N-1 runner is the privileged mutation boundary for the candidate lab. Its node and interface values come only from the validated plan, are checked again by the shell, and are passed as quoted arguments to `docker exec`.
@@ -106,7 +129,8 @@ All router links participate in OSPF area 0. Interface costs create explicit pri
 - Phase 2: completed BFD remote-failure comparison and Prometheus-compatible evidence metrics.
 - Phase 3: completed live BFD/OSPF/RIB/ICMP convergence timeline and containerlab E2E CI.
 - Phase 4a: completed bounded SQLite event persistence and promtool-tested local alert evaluation.
-- Phase 4b: Alertmanager delivery, BGP/MPLS L3VPN, distributed event storage, and streaming telemetry.
+- Phase 4b: completed fixed-inventory operational telemetry, bounded SQLite persistence, Prometheus metrics, and a plugin-free live topology dashboard.
+- Phase 4c: Alertmanager delivery, BGP/MPLS L3VPN, distributed event storage, and gNMI/SNMP streaming telemetry remain out of scope.
 - Phase 5a: completed deterministic N-1 single-link audit and Grafana scenario matrix.
 - Phase 5b: completed service dual-homing design and transport-node failure audit.
 - Phase 5c: completed strict shared-risk failure-domain modeling, cost-aware composite audit, API, metrics, and Grafana matrix.

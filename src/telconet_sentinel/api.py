@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Response, status
 from fastapi.responses import PlainTextResponse
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, IPvAnyAddress
 
@@ -43,6 +43,13 @@ from .runtime_resilience import (
     validate_runtime_n1_published_topology,
 )
 from .service import IncidentService
+from .telemetry_config import (
+    TelemetryTopologyBinding,
+    validate_telemetry_ingest,
+)
+from .telemetry_metrics import render_telemetry_metrics
+from .telemetry_models import TelemetrySnapshot
+from .telemetry_store import TelemetryRepository, TelemetryStore
 from .topology import Topology
 
 
@@ -311,6 +318,8 @@ def create_app(
     failure_domains: FailureDomainCatalog | None = None,
     runtime_n1_evidence: RuntimeN1PublishedEvidence | None = None,
     runtime_n1_configuration_sha256: str | None = None,
+    telemetry_binding: TelemetryTopologyBinding | None = None,
+    telemetry_store: TelemetryRepository | None = None,
 ) -> FastAPI:
     if experiment_evidence is not None:
         validate_experiment_evidence(experiment_evidence)
@@ -326,6 +335,8 @@ def create_app(
             candidate_topology,
             runtime_n1_configuration_sha256,
         )
+    if telemetry_store is not None and telemetry_binding is None:
+        raise ValueError("telemetry storage requires a server-side topology binding")
     app = FastAPI(
         title="TelcoNet Sentinel",
         version="0.1.0",
@@ -333,6 +344,9 @@ def create_app(
     )
     service = IncidentService(topology)
     live_store = convergence_store or ConvergenceStore()
+    telemetry_repository: TelemetryRepository | None = None
+    if telemetry_binding is not None:
+        telemetry_repository = telemetry_store or TelemetryStore()
     resilience_audit = audit_single_link_failures(topology)
     node_resilience_audit = audit_single_node_failures(topology)
     candidate_audit = (
@@ -379,7 +393,76 @@ def create_app(
             rendered += render_failure_domain_metrics(failure_domain_audit)
         if runtime_n1_evidence is not None:
             rendered += render_runtime_n1_metrics(runtime_n1_evidence)
+        if telemetry_binding is not None and telemetry_repository is not None:
+            rendered += render_telemetry_metrics(
+                telemetry_repository.latest(telemetry_binding.fingerprint),
+                telemetry_binding,
+            )
         return PlainTextResponse(rendered, media_type="text/plain; version=0.0.4")
+
+    if telemetry_binding is not None and telemetry_repository is not None:
+
+        @app.post(
+            "/api/telemetry/snapshots",
+            response_model=TelemetrySnapshot,
+            status_code=status.HTTP_201_CREATED,
+        )
+        def ingest_telemetry_snapshot(
+            snapshot: TelemetrySnapshot,
+            response: Response,
+        ) -> TelemetrySnapshot:
+            try:
+                validate_telemetry_ingest(snapshot, telemetry_binding)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=str(exc),
+                ) from exc
+
+            latest = telemetry_repository.latest(telemetry_binding.fingerprint)
+            if (
+                latest is not None
+                and latest.snapshot_id != snapshot.snapshot_id
+                and snapshot.observed_at <= latest.observed_at
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="telemetry snapshot is not newer than the current snapshot",
+                )
+            try:
+                created = telemetry_repository.save(snapshot)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=str(exc),
+                ) from exc
+            if not created:
+                retained_retry = any(
+                    candidate.snapshot_id == snapshot.snapshot_id
+                    for candidate in telemetry_repository.recent(
+                        telemetry_binding.fingerprint
+                    )
+                )
+                if not retained_retry:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="telemetry snapshot is outside the retention window",
+                    )
+                response.status_code = status.HTTP_200_OK
+            return snapshot
+
+        @app.get(
+            "/api/telemetry/snapshots/latest",
+            response_model=TelemetrySnapshot,
+        )
+        def get_latest_telemetry_snapshot() -> TelemetrySnapshot:
+            snapshot = telemetry_repository.latest(telemetry_binding.fingerprint)
+            if snapshot is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="telemetry snapshot not found",
+                )
+            return snapshot
 
     @app.get("/api/topology")
     def get_topology() -> dict[str, list[dict[str, Any]]]:
