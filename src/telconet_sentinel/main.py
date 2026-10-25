@@ -11,6 +11,8 @@ from .failure_domain import load_failure_domains, validate_failure_domain_design
 from .intent import load_design_catalog
 from .metrics import load_experiment_evidence, load_repeated_experiment_evidence
 from .runtime_resilience import load_runtime_n1_published_evidence
+from .telemetry_config import load_telemetry_binding
+from .telemetry_store import SQLiteTelemetryStore, TelemetryStore
 
 PROJECT_ROOT = Path(
     os.environ.get("TELCONET_PROJECT_ROOT", Path(__file__).resolve().parents[2])
@@ -51,6 +53,18 @@ RUNTIME_N1_EVIDENCE_PATH = Path(
         PROJECT_ROOT / "evidence" / "runtime-n1-dashboard.json",
     )
 )
+TELEMETRY_TARGETS_PATH = Path(
+    os.environ.get(
+        "TELCONET_TELEMETRY_TARGETS",
+        PROJECT_ROOT / "lab" / "telemetry-targets.yml",
+    )
+)
+TELEMETRY_CLAB_PATH = Path(
+    os.environ.get(
+        "TELCONET_TELEMETRY_CLAB",
+        PROJECT_ROOT / "lab" / "telconet.clab.yml",
+    )
+)
 
 experiment_evidence = (
     load_experiment_evidence(EXPERIMENT_PATH) if EXPERIMENT_PATH.is_file() else None
@@ -69,6 +83,17 @@ convergence_store = (
     SQLiteConvergenceStore(Path(state_database))
     if state_database
     else ConvergenceStore()
+)
+telemetry_binding = load_telemetry_binding(
+    TELEMETRY_TARGETS_PATH,
+    INTENT_PATH,
+    TELEMETRY_CLAB_PATH,
+)
+telemetry_database = os.environ.get("TELCONET_TELEMETRY_DB")
+telemetry_store = (
+    SQLiteTelemetryStore(Path(telemetry_database))
+    if telemetry_database
+    else TelemetryStore()
 )
 candidate_topology = (
     load_topology(CANDIDATE_INTENT_PATH)
@@ -96,4 +121,6 @@ app = create_app(
     failure_domains=failure_domains,
     runtime_n1_evidence=runtime_n1_evidence,
     runtime_n1_configuration_sha256=runtime_n1_configuration_sha256,
+    telemetry_binding=telemetry_binding,
+    telemetry_store=telemetry_store,
 )

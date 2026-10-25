@@ -20,6 +20,7 @@ telconet-evidence = "telconet_sentinel.evidence_manifest:main"
 telconet-runtime-audit = "telconet_sentinel.runtime_conformance:main"
 telconet-runtime-n1 = "telconet_sentinel.runtime_resilience:main"
 telconet-runtime-snapshot = "telconet_sentinel.runtime_conformance:snapshot_main"
+telconet-telemetry = "telconet_sentinel.telemetry_collector:main"
 
 [project.optional-dependencies]
 dev = [

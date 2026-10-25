@@ -1,0 +1,792 @@
+{
+  "annotations": {"list": []},
+  "description": "Host-polled FRR telemetry for the local TelcoNet Sentinel containerlab. Current health, topology, routing, neighbor state, interface traffic, and drops are shown separately from sub-second convergence evidence.",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": false,
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Network overview",
+      "type": "link",
+      "url": "/d/telconet-network-overview"
+    },
+    {
+      "asDropdown": false,
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Live convergence",
+      "type": "link",
+      "url": "/d/telconet-live-convergence"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": {"type": "datasource", "uid": "grafana"},
+      "gridPos": {"h": 2, "w": 24, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
+        "content": "## Live Network Telemetry\nCurrent FRR control-plane and interface state · local containerlab simulation",
+        "mode": "markdown"
+      },
+      "pluginVersion": "13.1.0",
+      "transparent": true,
+      "title": "LIVE TELEMETRY",
+      "type": "text"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Seconds since the collector produced its latest typed snapshot. Orange and red mean the last values elsewhere on this dashboard may be stale.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "decimals": 1,
+          "noValue": "UNKNOWN",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "orange", "value": 3},
+              {"color": "red", "value": 10}
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 2},
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "time() - telconet_telemetry_snapshot_timestamp_seconds",
+          "instant": true,
+          "legendFormat": "snapshot age",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "TELEMETRY AGE",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Routers successfully collected in the latest snapshot. Confirm TELEMETRY AGE is green before treating this count as current.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "decimals": 0,
+          "noValue": "UNKNOWN",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "orange", "value": 1},
+              {"color": "green", "value": 6}
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 2},
+      "id": 3,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(telconet_router_collection_success)",
+          "instant": true,
+          "legendFormat": "routers",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "HEALTHY ROUTERS",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Minimum state across collected OSPF neighbors. Missing series are UNKNOWN, not DOWN.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [
+            {
+              "options": {
+                "-1": {"color": "gray", "text": "UNKNOWN"},
+                "0": {"color": "red", "text": "NOT FULL"},
+                "1": {"color": "green", "text": "ALL FULL"}
+              },
+              "type": "value"
+            }
+          ],
+          "noValue": "UNKNOWN",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 2},
+      "id": 4,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "min(telconet_ospf_neighbor_full)",
+          "instant": true,
+          "legendFormat": "adjacencies",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "OSPF FULL",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Minimum state across configured BFD peers. No configured or collected peer is shown as UNKNOWN rather than healthy.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [
+            {
+              "options": {
+                "-1": {"color": "gray", "text": "UNKNOWN"},
+                "0": {"color": "red", "text": "PEER DOWN"},
+                "1": {"color": "green", "text": "ALL UP"}
+              },
+              "type": "value"
+            }
+          ],
+          "noValue": "UNKNOWN",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 2},
+      "id": 5,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "min(telconet_bfd_peer_up * on(node,peer,interface) (telconet_bfd_peer_configured == 1))",
+          "instant": true,
+          "legendFormat": "peers",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "BFD STATUS",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Selected OSPF metric from access1 to the service prefix. Primary is 30; the designed backup is 140.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "decimals": 0,
+          "mappings": [
+            {
+              "options": {"-1": {"color": "gray", "text": "UNKNOWN"}},
+              "type": "value"
+            }
+          ],
+          "noValue": "UNKNOWN",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "orange", "value": 100}
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 2},
+      "id": 6,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "telconet_selected_route_metric{node=\"access1\"} or on() vector(-1)",
+          "instant": true,
+          "legendFormat": "metric",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "ACCESS1 ROUTE",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Selected OSPF metric from access2 to the service prefix. Primary is 50; the designed backup is 120.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "decimals": 0,
+          "mappings": [
+            {
+              "options": {"-1": {"color": "gray", "text": "UNKNOWN"}},
+              "type": "value"
+            }
+          ],
+          "noValue": "UNKNOWN",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "orange", "value": 100}
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 2},
+      "id": 7,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "vertical",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "value_and_name",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "telconet_selected_route_metric{node=\"access2\"} or on() vector(-1)",
+          "instant": true,
+          "legendFormat": "metric",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "ACCESS2 ROUTE",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Current topology derived from typed node and link metrics. Edge mainstat 1 is operational; 0 is down. Node role comes from the declared intent.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [
+            {
+              "options": {
+                "-1": {"color": "gray", "text": "UNKNOWN"},
+                "0": {"color": "red", "text": "DOWN"},
+                "1": {"color": "green", "text": "UP"}
+              },
+              "type": "value"
+            }
+          ],
+          "noValue": "UNKNOWN",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 13, "w": 16, "x": 0, "y": 6},
+      "id": 8,
+      "options": {
+        "edges": {"mainStatUnit": "short", "secondaryStatUnit": "short"},
+        "nodes": {"mainStatUnit": "short", "secondaryStatUnit": "short"},
+        "zoomMode": "cooperative"
+      },
+      "pluginVersion": "13.1.0",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "label_replace(telconet_topology_link_oper_up, \"id\", \"$1\", \"link_id\", \"(.*)\")",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{link_id}}",
+          "range": false,
+          "refId": "edges"
+        },
+        {
+          "editorMode": "code",
+          "expr": "label_replace(label_replace(label_replace(telconet_topology_node_info, \"id\", \"$1\", \"node\", \"(.*)\"), \"title\", \"$1\", \"node\", \"(.*)\"), \"subtitle\", \"$1\", \"role\", \"(.*)\")",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{node}}",
+          "range": false,
+          "refId": "nodes"
+        }
+      ],
+      "title": "LIVE NETWORK TOPOLOGY",
+      "type": "nodeGraph"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Current selected service-prefix route and egress link. An absent route is not converted to metric zero.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {"cellOptions": {"type": "auto"}},
+          "decimals": 0,
+          "noValue": "UNKNOWN"
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "Metric"},
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {"color": "green", "value": null},
+                    {"color": "orange", "value": 100}
+                  ]
+                }
+              },
+              {"id": "custom.cellOptions", "value": {"type": "color-text"}}
+            ]
+          }
+        ]
+      },
+      "gridPos": {"h": 7, "w": 8, "x": 16, "y": 6},
+      "id": 9,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {"countRows": false, "enablePagination": false, "fields": "", "reducer": ["count"], "show": false},
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "(telconet_selected_route_metric * on(node,prefix) group_left(link_id) telconet_selected_route_egress) and on(node,prefix) (telconet_selected_route_present == 1)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{node}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "SELECTED SERVICE ROUTES",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true, "__name__": true, "instance": true, "job": true},
+            "indexByName": {"node": 0, "prefix": 1, "link_id": 2, "Value": 3},
+            "renameByName": {"Value": "Metric", "link_id": "Egress", "node": "Router", "prefix": "Prefix"}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Latest interface carrier state. Missing rows are unknown; use TELEMETRY AGE to detect a stale snapshot.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {"cellOptions": {"type": "auto"}},
+          "mappings": [
+            {
+              "options": {
+                "-1": {"color": "gray", "text": "UNKNOWN"},
+                "0": {"color": "red", "text": "DOWN"},
+                "1": {"color": "green", "text": "UP"}
+              },
+              "type": "value"
+            }
+          ],
+          "noValue": "UNKNOWN",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "State"},
+            "properties": [{"id": "custom.cellOptions", "value": {"type": "color-text"}}]
+          }
+        ]
+      },
+      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 13},
+      "id": 10,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {"countRows": true, "enablePagination": false, "fields": "", "reducer": ["count"], "show": true},
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "telconet_interface_oper_up",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{node}} · {{interface}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "INTERFACE OPER STATE",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true, "__name__": true, "instance": true, "job": true},
+            "indexByName": {"node": 0, "interface": 1, "link_id": 2, "Value": 3},
+            "renameByName": {"Value": "State", "interface": "Interface", "link_id": "Link", "node": "Router"}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "OSPF adjacency state reported by each router in the latest snapshot.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {"cellOptions": {"type": "auto"}},
+          "mappings": [
+            {
+              "options": {
+                "-1": {"color": "gray", "text": "UNKNOWN"},
+                "0": {"color": "red", "text": "NOT FULL"},
+                "1": {"color": "green", "text": "FULL"}
+              },
+              "type": "value"
+            }
+          ],
+          "noValue": "UNKNOWN",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "State"},
+            "properties": [{"id": "custom.cellOptions", "value": {"type": "color-text"}}]
+          }
+        ]
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 19},
+      "id": 11,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {"countRows": true, "enablePagination": false, "fields": "", "reducer": ["count"], "show": true},
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "telconet_ospf_neighbor_full",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{node}} → {{neighbor}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "OSPF NEIGHBORS",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true, "__name__": true, "instance": true, "job": true},
+            "indexByName": {"node": 0, "neighbor": 1, "interface": 2, "Value": 3},
+            "renameByName": {"Value": "State", "interface": "Interface", "neighbor": "Neighbor", "node": "Router"}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "State of peers explicitly configured for BFD. Missing telemetry remains UNKNOWN.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {"cellOptions": {"type": "auto"}},
+          "mappings": [
+            {
+              "options": {
+                "-1": {"color": "gray", "text": "UNKNOWN"},
+                "0": {"color": "red", "text": "DOWN"},
+                "1": {"color": "green", "text": "UP"}
+              },
+              "type": "value"
+            }
+          ],
+          "noValue": "UNKNOWN",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "State"},
+            "properties": [{"id": "custom.cellOptions", "value": {"type": "color-text"}}]
+          }
+        ]
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 19},
+      "id": 12,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {"countRows": true, "enablePagination": false, "fields": "", "reducer": ["count"], "show": true},
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "telconet_bfd_peer_up * on(node,peer,interface) (telconet_bfd_peer_configured == 1)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{node}} → {{peer}}",
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "BFD PEERS",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true, "__name__": true, "instance": true, "job": true},
+            "indexByName": {"node": 0, "peer": 1, "interface": 2, "Value": 3},
+            "renameByName": {"Value": "State", "interface": "Interface", "node": "Router", "peer": "Peer"}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Per-interface counter rates over a 15 second window. The collector and Prometheus scrape cadence are one second.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "opacity",
+            "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 3,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {"group": "A", "mode": "none"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "noValue": "UNKNOWN",
+          "unit": "bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 10, "w": 14, "x": 0, "y": 27},
+      "id": 13,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"hideZeros": false, "mode": "multi", "sort": "desc"}
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "rate(telconet_interface_receive_bytes_total[15s]) * 8",
+          "instant": false,
+          "legendFormat": "RX · {{node}} · {{interface}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "rate(telconet_interface_transmit_bytes_total[15s]) * 8",
+          "instant": false,
+          "legendFormat": "TX · {{node}} · {{interface}}",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "INTERFACE THROUGHPUT",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "description": "Rate of receive and transmit drop counters. A missing series is UNKNOWN, not zero drops.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 35,
+            "gradientMode": "none",
+            "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 3,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {"group": "A", "mode": "normal"},
+            "thresholdsStyle": {"mode": "line"}
+          },
+          "noValue": "UNKNOWN",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "orange", "value": 0.01},
+              {"color": "red", "value": 1}
+            ]
+          },
+          "unit": "pps"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 10, "w": 10, "x": 14, "y": 27},
+      "id": 14,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"hideZeros": false, "mode": "multi", "sort": "desc"}
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "rate(telconet_interface_receive_drops_total[15s])",
+          "instant": false,
+          "legendFormat": "RX drop · {{node}} · {{interface}}",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "editorMode": "code",
+          "expr": "rate(telconet_interface_transmit_drops_total[15s])",
+          "instant": false,
+          "legendFormat": "TX drop · {{node}} · {{interface}}",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "INTERFACE DROPS",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "datasource", "uid": "grafana"},
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 37},
+      "id": 15,
+      "options": {
+        "code": {"language": "plaintext", "showLineNumbers": false, "showMiniMap": false},
+        "content": "### Telemetry contract\n\nThis is **host-polled FRR telemetry** collected on a **1 second** cadence and scraped by Prometheus every 1 second. It provides operational visibility; it is **not sub-second convergence evidence**. Sub-second experiment results come from the convergence collector's **monotonic** event timestamps and belong on the Live Convergence dashboard.\n\nTreat an absent sample as **UNKNOWN**, never as healthy or zero. When **TELEMETRY AGE** is orange or red, the remaining panels may display a **stale** last sample. Interface drop panels likewise distinguish no series from a measured zero rate. All states describe this local containerlab simulation, not a production availability target.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "13.1.0",
+      "title": "TELEMETRY CONTRACT",
+      "type": "text"
+    }
+  ],
+  "refresh": "1s",
+  "schemaVersion": 42,
+  "tags": ["telconet", "telemetry", "ospf", "bfd", "containerlab"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "TelcoNet Sentinel · Live Network Telemetry",
+  "uid": "telconet-live-telemetry",
+  "version": 1,
+  "weekStart": ""
+}
